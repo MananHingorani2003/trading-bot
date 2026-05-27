@@ -97,7 +97,7 @@ def build_briefing(client: AIClient, *, day: date, strategy_version: str) -> Bri
         )
         r = client.message(
             model=SONNET, system=prompts.BRIEFING_SYSTEM, user=user,
-            max_tokens=800, temperature=0.3,
+            max_tokens=2000, temperature=0.3,
         )
         try:
             d = parse_json_object(
@@ -122,8 +122,13 @@ def build_briefing(client: AIClient, *, day: date, strategy_version: str) -> Bri
                 )
         except Exception as e:                  # noqa: BLE001
             b = _rules_only_briefing(day, cues, headlines)
+            # Truncation hint — if open braces > close braces, max_tokens was too low
+            hint = ""
+            opens, closes = r.text.count("{"), r.text.count("}")
+            if opens > closes:
+                hint = f" [likely TRUNCATED — {opens} '{{' vs {closes} '}}'; bump max_tokens or shorten prompt]"
             b.briefing_md += (
-                f"\n\n(sonnet parse failed: {e})\n\n"
+                f"\n\n(sonnet parse failed: {e}{hint})\n\n"
                 f"--- raw response ---\n{r.text[:1500]}"
             )
 

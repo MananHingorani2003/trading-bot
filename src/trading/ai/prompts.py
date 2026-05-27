@@ -30,13 +30,13 @@ Top macro headlines (last ~24h):
 Open positions & their recent news:
 {positions_news}
 
-Return JSON:
+Return JSON (KEEP RESPONSE UNDER 1500 TOKENS — be concise):
 {{
   "mood": "risk_on" | "neutral" | "risk_off",
-  "mood_reason": "1-2 sentences citing the cues/news that drove the call",
-  "watch_today": ["...", "..."],
-  "positions_at_risk": ["SYMBOL: short reason", "..."],
-  "briefing_md": "Markdown body, 5-10 short lines for the journal"
+  "mood_reason": "1 short sentence citing cues/news that drove the call",
+  "watch_today": ["max 5 items, each ≤ 100 chars: SYMBOL: one-line reason"],
+  "positions_at_risk": ["SYMBOL: short reason"],
+  "briefing_md": "Markdown body, MAX 8 short lines. No headers. Plain bullets only."
 }}"""
 
 # ---- Tier 1: Haiku rank (cheap) ----

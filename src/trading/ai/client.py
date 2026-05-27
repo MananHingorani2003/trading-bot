@@ -99,11 +99,68 @@ def parse_json(text: str) -> dict | list:
     raise ValueError(f"no JSON found in: {text[:200]}")
 
 
-def parse_json_object(text: str) -> dict:
-    """Like parse_json but always returns a dict — unwraps `[ {...} ]` shapes."""
-    d = parse_json(text)
+def _find_all_objects(text: str) -> list[dict]:
+    """Return every top-level JSON object found in text, in order."""
+    t = text.strip()
+    if t.startswith("```"):
+        t = t.split("```", 2)[1]
+        if t.startswith("json"):
+            t = t[4:]
+        t = t.rsplit("```", 1)[0].strip()
+    objs: list[dict] = []
+    i = 0
+    while i < len(t):
+        start = t.find("{", i)
+        if start == -1:
+            break
+        depth = 0
+        end_found = False
+        for j in range(start, len(t)):
+            if t[j] == "{":
+                depth += 1
+            elif t[j] == "}":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        obj = json.loads(t[start:j + 1])
+                        if isinstance(obj, dict):
+                            objs.append(obj)
+                    except json.JSONDecodeError:
+                        pass
+                    i = j + 1
+                    end_found = True
+                    break
+        if not end_found:
+            break
+    return objs
+
+
+def parse_json_object(text: str, *, required_keys: list[str] | None = None) -> dict:
+    """Find a JSON object in text.
+
+    If `required_keys` is given, return the first object that has at least one
+    of them — so a stray `{}` or `{example: "TCS"}` inside model prose doesn't
+    fool us into thinking we got the real response.
+
+    Falls back to `parse_json` for [list-wrapped] shapes.
+    """
+    objs = _find_all_objects(text)
+    if objs:
+        if required_keys:
+            for o in objs:
+                if any(k in o for k in required_keys):
+                    return o
+        return objs[0]
+
+    # Maybe the response is a JSON array — pick the first dict in it
+    try:
+        d = parse_json(text)
+    except Exception as e:                      # noqa: BLE001
+        raise ValueError(f"no JSON object in: {text[:200]}") from e
     if isinstance(d, list):
-        d = d[0] if d and isinstance(d[0], dict) else {}
-    if not isinstance(d, dict):
-        raise ValueError(f"expected JSON object, got {type(d).__name__}")
-    return d
+        for item in d:
+            if isinstance(item, dict):
+                return item
+    if isinstance(d, dict):
+        return d
+    raise ValueError(f"expected JSON object, got {type(d).__name__}")

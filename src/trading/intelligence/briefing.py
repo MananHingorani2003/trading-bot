@@ -100,7 +100,10 @@ def build_briefing(client: AIClient, *, day: date, strategy_version: str) -> Bri
             max_tokens=800, temperature=0.3,
         )
         try:
-            d = parse_json_object(r.text)
+            d = parse_json_object(
+                r.text,
+                required_keys=["mood", "briefing_md", "mood_reason"],
+            )
             b = Briefing(
                 date=day.isoformat(),
                 mood=str(d.get("mood", "neutral")),
@@ -109,9 +112,20 @@ def build_briefing(client: AIClient, *, day: date, strategy_version: str) -> Bri
                 positions_at_risk=list(d.get("positions_at_risk") or []),
                 briefing_md=str(d.get("briefing_md", "")),
             )
+            # Sanity: if Sonnet returned an object that LOOKS valid but is
+            # actually empty, surface its raw response so we don't ship a
+            # silent blank briefing.
+            if not b.briefing_md and not b.mood_reason:
+                b.briefing_md = (
+                    "(Sonnet returned an empty object — raw response below)\n\n"
+                    + r.text[:1500]
+                )
         except Exception as e:                  # noqa: BLE001
             b = _rules_only_briefing(day, cues, headlines)
-            b.briefing_md += f"\n\n(sonnet parse failed: {e})"
+            b.briefing_md += (
+                f"\n\n(sonnet parse failed: {e})\n\n"
+                f"--- raw response ---\n{r.text[:1500]}"
+            )
 
     # Persist: journal row + KB index + decision row
     with ledger.connect() as conn:

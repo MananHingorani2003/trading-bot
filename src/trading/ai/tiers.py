@@ -154,7 +154,10 @@ def sonnet_analyse(
         max_tokens=600, temperature=0.2,
     )
     try:
-        d = parse_json_object(r.text)
+        d = parse_json_object(
+            r.text,
+            required_keys=["recommendation", "setup_quality", "reason_md"],
+        )
         analysis = SonnetAnalysis(symbol=candidate.symbol, **{k: d[k] for k in (
             "setup_quality", "key_positives", "key_risks",
             "fundamental_flag", "recommendation", "reason_md",
@@ -227,7 +230,10 @@ def opus_decide(
         user=user, max_tokens=1200, temperature=0.2,
     )
     try:
-        d = parse_json_object(r.text)
+        d = parse_json_object(
+            r.text,
+            required_keys=["buys", "skip_reason_for_others"],
+        )
         buys_raw = d.get("buys", [])
         buys = [BuyDecision(**{k: b[k] for k in ("symbol", "confidence", "thesis_md", "time_horizon", "catalysts")}) for b in buys_raw][:capacity]
     except Exception as e:                       # noqa: BLE001
@@ -320,7 +326,10 @@ def opus_sell_review(
         max_tokens=600, temperature=0.2,
     )
     try:
-        d = parse_json_object(r.text)
+        d = parse_json_object(
+            r.text,
+            required_keys=["action", "reason_md"],
+        )
         sd = SellDecision(
             action=str(d.get("action", "HOLD")).upper(),
             trim_pct=float(d.get("trim_pct", 0.0) or 0.0),

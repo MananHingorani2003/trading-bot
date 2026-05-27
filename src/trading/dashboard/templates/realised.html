@@ -1,0 +1,64 @@
+{% extends "_base.html" %}
+{% block title %}Realised P&L · tt{% endblock %}
+{% block content %}
+<h1>Realised P&amp;L (per closed lot, post all charges)</h1>
+<p class="muted">
+  This is the only profit number you should trust. Every value here is
+  proceeds minus cost basis, with ALL Zerodha charges already deducted on
+  both legs. Tax is shown separately on the Tax page.
+</p>
+
+<div class="cards">
+  <div class="card">
+    <div class="label">Total realised P&amp;L</div>
+    <div class="val {% if agg.total >= 0 %}pos{% else %}neg{% endif %}">
+      ₹{{ "{:,.2f}".format(agg.total) }}
+    </div>
+  </div>
+  <div class="card">
+    <div class="label">Wins</div>
+    <div class="val pos">{{ agg.wins }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Losses</div>
+    <div class="val neg">{{ agg.losses }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Hit rate</div>
+    <div class="val">
+      {% set tot = (agg.wins + agg.losses) %}
+      {% if tot %}{{ "%.1f%%"|format(100 * agg.wins / tot) }}{% else %}—{% endif %}
+    </div>
+  </div>
+</div>
+
+{% if rows %}
+<table>
+  <thead><tr>
+    <th>Sell date</th><th>Symbol</th>
+    <th class="num">Qty</th><th class="num">Held (d)</th>
+    <th class="num">Cost basis</th><th class="num">Proceeds</th>
+    <th class="num">P&amp;L (net)</th><th>Type</th><th>FY</th>
+  </tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td class="muted">{{ r.sell_date }}</td>
+      <td>{{ r.symbol }}</td>
+      <td class="num">{{ r.qty }}</td>
+      <td class="num">{{ r.holding_days }}</td>
+      <td class="num">₹{{ "{:,.2f}".format(r.buy_cost_total) }}</td>
+      <td class="num">₹{{ "{:,.2f}".format(r.sell_proceeds) }}</td>
+      <td class="num {% if r.realised_pnl >= 0 %}pos{% else %}neg{% endif %}">
+        ₹{{ "{:,.2f}".format(r.realised_pnl) }}
+      </td>
+      <td>{{ r.gain_type }}</td>
+      <td class="muted">{{ r.fy }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">No closed lots yet.</p>
+{% endif %}
+{% endblock %}

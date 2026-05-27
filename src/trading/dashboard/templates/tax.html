@@ -1,0 +1,74 @@
+{% extends "_base.html" %}
+{% block title %}Tax · tt{% endblock %}
+{% block content %}
+<h1>Tax sheet — {{ fy }}</h1>
+<p class="muted">
+  Rates per Union Budget Jul 2024: STCG 20%, LTCG 12.5% on gains above the
+  ₹1,25,000 annual exemption. Holding &gt; 12 months = LTCG. This is an estimate,
+  not legal advice — share with your CA at FY end.
+</p>
+
+<div class="cards">
+  <div class="card">
+    <div class="label">STCG (net gain)</div>
+    <div class="val">₹{{ "{:,.2f}".format(summary.stcg_gain) }}</div>
+  </div>
+  <div class="card">
+    <div class="label">LTCG (net gain)</div>
+    <div class="val">₹{{ "{:,.2f}".format(summary.ltcg_gain) }}</div>
+  </div>
+  <div class="card">
+    <div class="label">LTCG exemption used</div>
+    <div class="val">₹{{ "{:,.2f}".format(summary.ltcg_exempt) }}</div>
+  </div>
+  <div class="card">
+    <div class="label">LTCG taxable</div>
+    <div class="val">₹{{ "{:,.2f}".format(summary.ltcg_taxable) }}</div>
+  </div>
+  <div class="card">
+    <div class="label">STCG tax</div>
+    <div class="val">₹{{ "{:,.2f}".format(summary.stcg_tax) }}</div>
+  </div>
+  <div class="card">
+    <div class="label">LTCG tax</div>
+    <div class="val">₹{{ "{:,.2f}".format(summary.ltcg_tax) }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Total tax (est.)</div>
+    <div class="val neg">₹{{ "{:,.2f}".format(summary.total_tax) }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Net realised AFTER tax</div>
+    <div class="val {% if summary.net_realised_after_tax >= 0 %}pos{% else %}neg{% endif %}">
+      ₹{{ "{:,.2f}".format(summary.net_realised_after_tax) }}
+    </div>
+  </div>
+</div>
+
+<h1>Per-lot realisations ({{ fy }})</h1>
+{% if lots %}
+<table>
+  <thead><tr>
+    <th>Sell date</th><th>Symbol</th>
+    <th class="num">Qty</th><th class="num">Held (d)</th>
+    <th class="num">P&amp;L (net)</th><th>Type</th>
+  </tr></thead>
+  <tbody>
+  {% for l in lots %}
+    <tr>
+      <td class="muted">{{ l.sell_date }}</td>
+      <td>{{ l.symbol }}</td>
+      <td class="num">{{ l.qty }}</td>
+      <td class="num">{{ l.holding_days }}</td>
+      <td class="num {% if l.realised_pnl >= 0 %}pos{% else %}neg{% endif %}">
+        ₹{{ "{:,.2f}".format(l.realised_pnl) }}
+      </td>
+      <td>{{ l.gain_type }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">No realisations in {{ fy }} yet.</p>
+{% endif %}
+{% endblock %}

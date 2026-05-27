@@ -1,0 +1,3 @@
+- [User profile](user_profile.md) — works 9-5, wants automated swing trading on Zerodha, ₹50k target capital, paper-trade first
+- [Project: trading terminal](project_trading_terminal.md) — AI trading terminal, Kite Connect, swing style, VPS Mumbai, tiered Claude (Haiku→Sonnet→Opus)
+- [Plan document](reference_plan_doc.md) — Master build plan lives at PLAN.md in repo root

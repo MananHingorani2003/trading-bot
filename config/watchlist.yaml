@@ -1,0 +1,18 @@
+# Universe seed list. Full Nifty 500 loader will populate symbols at runtime.
+# This file holds a tiny manual list used by the trivial backtest in Phase 0.
+symbols:
+  - RELIANCE
+  - TCS
+  - INFY
+  - HDFCBANK
+  - ICICIBANK
+  - ITC
+  - LT
+  - SBIN
+  - AXISBANK
+  - BHARTIARTL
+  - ASIANPAINT
+  - MARUTI
+  - HCLTECH
+  - WIPRO
+  - SUNPHARMA

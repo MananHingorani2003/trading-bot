@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{% block title %}Trading Terminal{% endblock %}</title>
+<style>
+  :root { --bg:#0e1116; --fg:#e6e6e6; --muted:#8b96a5; --pos:#3ecf8e; --neg:#ff6363; --acc:#6aa9ff; --border:#1f2630; }
+  * { box-sizing: border-box; }
+  body { font-family: ui-monospace,Menlo,Consolas,monospace; background:var(--bg); color:var(--fg); margin:0; }
+  nav { background:#161b22; border-bottom:1px solid var(--border); padding:.6rem 1rem; display:flex; gap:1rem; align-items:center; }
+  nav a { color:var(--fg); text-decoration:none; padding:.3rem .6rem; border-radius:4px; }
+  nav a:hover { background:#222c39; }
+  nav .brand { font-weight:700; color:var(--acc); margin-right:1rem; }
+  main { padding:1rem 1.25rem; max-width:1400px; margin:auto; }
+  h1 { margin:.4rem 0 1rem; font-size:1.2rem; }
+  table { width:100%; border-collapse:collapse; font-size:.85rem; }
+  th, td { padding:.4rem .6rem; border-bottom:1px solid var(--border); text-align:left; }
+  th { background:#161b22; color:var(--muted); font-weight:500; }
+  .num { text-align:right; font-variant-numeric: tabular-nums; }
+  .pos { color:var(--pos); } .neg { color:var(--neg); } .muted { color:var(--muted); }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:.75rem; margin-bottom:1.25rem; }
+  .card { background:#161b22; border:1px solid var(--border); border-radius:8px; padding:.8rem 1rem; }
+  .card .label { color:var(--muted); font-size:.75rem; text-transform:uppercase; letter-spacing:.04em; }
+  .card .val { font-size:1.4rem; margin-top:.2rem; }
+  pre { white-space: pre-wrap; word-break: break-word; background:#0a0d12; padding:.5rem; border-radius:4px; max-width:60ch; }
+</style>
+</head>
+<body>
+<nav>
+  <span class="brand">tt</span>
+  <a href="/">overview</a>
+  <a href="/positions">positions</a>
+  <a href="/trades">trades</a>
+  <a href="/realised">realised P&amp;L</a>
+  <a href="/tax">tax</a>
+  <a href="/decisions">decisions</a>
+  <a href="/briefings">briefings</a>
+  <a href="/news">news</a>
+</nav>
+<main>
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

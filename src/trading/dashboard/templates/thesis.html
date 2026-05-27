@@ -1,0 +1,38 @@
+{% extends "_base.html" %}
+{% block title %}{{ symbol }} thesis · tt{% endblock %}
+{% block content %}
+<h1>{{ symbol }} — thesis &amp; history</h1>
+
+{% if pos %}
+<div class="card" style="margin-bottom:1rem;">
+  <div class="label">Open position</div>
+  <div>Qty {{ pos.qty }} @ ₹{{ "{:,.2f}".format(pos.avg_price) }} · opened {{ pos.opened_at }}</div>
+  <div class="muted">target ₹{{ pos.target_price or '—' }} · stop ₹{{ pos.stop_price or '—' }} · horizon {{ pos.time_horizon or '—' }}</div>
+  <h3 style="margin-top:1rem;font-size:.9rem;">Original thesis</h3>
+  <pre>{{ pos.summary_md or '(no thesis recorded — bought before thesis logging)' }}</pre>
+  {% if pos.catalysts %}<div class="muted">Catalysts: {{ pos.catalysts }}</div>{% endif %}
+</div>
+{% else %}
+<p class="muted">No open position in {{ symbol }}.</p>
+{% endif %}
+
+<h1>Decision history</h1>
+{% if history %}
+<table>
+  <thead><tr><th>Time</th><th>Kind</th><th>Action</th><th>Tier</th><th>Reasoning</th></tr></thead>
+  <tbody>
+  {% for h in history %}
+    <tr>
+      <td class="muted">{{ h.ts }}</td>
+      <td>{{ h.kind }}</td>
+      <td>{{ h.action or '—' }}</td>
+      <td class="muted">{{ h.ai_tier or '—' }}</td>
+      <td><pre>{{ h.reasoning_md }}</pre></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">No decisions logged for {{ symbol }}.</p>
+{% endif %}
+{% endblock %}

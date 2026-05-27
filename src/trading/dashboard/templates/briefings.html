@@ -1,0 +1,15 @@
+{% extends "_base.html" %}
+{% block title %}Briefings · tt{% endblock %}
+{% block content %}
+<h1>Pre-market briefings (last 60)</h1>
+{% if rows %}
+{% for r in rows %}
+  <div class="card" style="margin-bottom:.75rem;">
+    <div class="label">{{ r.date }} <span class="muted">— {{ r.notes }}</span></div>
+    <pre>{{ r.premarket }}</pre>
+  </div>
+{% endfor %}
+{% else %}
+<p class="muted">No briefings logged yet. Run <code>tt brief</code> or <code>tt run-day</code>.</p>
+{% endif %}
+{% endblock %}

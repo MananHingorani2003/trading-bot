@@ -1,0 +1,35 @@
+# NSE trading holidays. Refresh annually from https://www.nseindia.com/resources/exchange-communication-holidays
+# Format: YYYY-MM-DD followed by short reason. Both 2025 and 2026 included so you
+# don't have to update mid-FY; verify the 2026 list once NSE publishes the
+# official circular (typically Dec of prior year).
+
+holidays:
+  # 2025
+  - { date: "2025-02-26", reason: "Mahashivratri" }
+  - { date: "2025-03-14", reason: "Holi" }
+  - { date: "2025-03-31", reason: "Id-Ul-Fitr (Ramadan Eid)" }
+  - { date: "2025-04-10", reason: "Shri Mahavir Jayanti" }
+  - { date: "2025-04-14", reason: "Dr. Baba Saheb Ambedkar Jayanti" }
+  - { date: "2025-04-18", reason: "Good Friday" }
+  - { date: "2025-05-01", reason: "Maharashtra Day" }
+  - { date: "2025-08-15", reason: "Independence Day" }
+  - { date: "2025-08-27", reason: "Shri Ganesh Chaturthi" }
+  - { date: "2025-10-02", reason: "Mahatma Gandhi Jayanti / Dussehra" }
+  - { date: "2025-10-21", reason: "Diwali Laxmi Pujan" }      # muhurat session may still trade
+  - { date: "2025-10-22", reason: "Balipratipada (Diwali)" }
+  - { date: "2025-11-05", reason: "Guru Nanak Jayanti" }
+  - { date: "2025-12-25", reason: "Christmas" }
+
+  # 2026 (verify against NSE circular when published — Indian holidays often shift)
+  - { date: "2026-01-26", reason: "Republic Day" }
+  - { date: "2026-02-17", reason: "Mahashivratri" }
+  - { date: "2026-03-04", reason: "Holi" }
+  - { date: "2026-03-20", reason: "Id-Ul-Fitr (tentative)" }
+  - { date: "2026-04-03", reason: "Good Friday" }
+  - { date: "2026-04-14", reason: "Dr. Baba Saheb Ambedkar Jayanti" }
+  - { date: "2026-05-01", reason: "Maharashtra Day" }
+  - { date: "2026-08-15", reason: "Independence Day" }
+  - { date: "2026-10-02", reason: "Mahatma Gandhi Jayanti" }
+  - { date: "2026-11-09", reason: "Diwali Laxmi Pujan (tentative)" }
+  - { date: "2026-11-25", reason: "Guru Nanak Jayanti" }
+  - { date: "2026-12-25", reason: "Christmas" }

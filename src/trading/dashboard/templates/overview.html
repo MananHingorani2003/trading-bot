@@ -1,0 +1,59 @@
+{% extends "_base.html" %}
+{% block title %}Overview · tt{% endblock %}
+{% block content %}
+<h1>Overview — {{ fy }}</h1>
+
+<div class="cards">
+  <div class="card">
+    <div class="label">Open positions</div>
+    <div class="val">{{ positions|length }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Trades logged</div>
+    <div class="val">{{ n_trades }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Decisions logged</div>
+    <div class="val">{{ n_decisions }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Realised P&amp;L (FYTD, post-costs)</div>
+    <div class="val {% if realised_fytd >= 0 %}pos{% else %}neg{% endif %}">
+      ₹{{ "{:,.2f}".format(realised_fytd) }}
+    </div>
+  </div>
+  <div class="card">
+    <div class="label">Tax due (est., {{ fy }})</div>
+    <div class="val">₹{{ "{:,.2f}".format(tax.total_tax) }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Net AFTER tax</div>
+    <div class="val {% if tax.net_realised_after_tax >= 0 %}pos{% else %}neg{% endif %}">
+      ₹{{ "{:,.2f}".format(tax.net_realised_after_tax) }}
+    </div>
+  </div>
+</div>
+
+<h1>Open positions</h1>
+{% if positions %}
+<table>
+  <thead><tr>
+    <th>Symbol</th><th class="num">Qty</th><th class="num">Avg price</th>
+    <th>Opened</th><th>Strategy ver</th>
+  </tr></thead>
+  <tbody>
+  {% for p in positions %}
+    <tr>
+      <td>{{ p.symbol }}</td>
+      <td class="num">{{ p.qty }}</td>
+      <td class="num">₹{{ "{:,.2f}".format(p.avg_price) }}</td>
+      <td class="muted">{{ p.opened_at }}</td>
+      <td class="muted">{{ p.strategy_ver }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">No open positions.</p>
+{% endif %}
+{% endblock %}

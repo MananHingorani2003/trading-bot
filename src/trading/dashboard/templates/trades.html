@@ -1,0 +1,31 @@
+{% extends "_base.html" %}
+{% block title %}Trades · tt{% endblock %}
+{% block content %}
+<h1>Trades (most recent 500)</h1>
+<p class="muted">Net value is the actual cash impact after every Zerodha charge.</p>
+{% if trades %}
+<table>
+  <thead><tr>
+    <th>Time</th><th>Symbol</th><th>Side</th>
+    <th class="num">Qty</th><th class="num">Price</th>
+    <th class="num">Gross</th><th class="num">Costs</th><th class="num">Net cash</th>
+  </tr></thead>
+  <tbody>
+  {% for t in trades %}
+    <tr>
+      <td class="muted">{{ t.ts }}</td>
+      <td>{{ t.symbol }}</td>
+      <td class="{% if t.side == 'BUY' %}pos{% else %}neg{% endif %}">{{ t.side }}</td>
+      <td class="num">{{ t.qty }}</td>
+      <td class="num">₹{{ "{:,.2f}".format(t.price) }}</td>
+      <td class="num">₹{{ "{:,.2f}".format(t.gross_value) }}</td>
+      <td class="num neg">₹{{ "{:,.2f}".format(t.total_costs) }}</td>
+      <td class="num">₹{{ "{:,.2f}".format(t.net_value) }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">No trades yet.</p>
+{% endif %}
+{% endblock %}

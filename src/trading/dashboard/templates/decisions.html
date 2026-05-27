@@ -1,0 +1,29 @@
+{% extends "_base.html" %}
+{% block title %}Decisions · tt{% endblock %}
+{% block content %}
+<h1>Decisions (most recent 500)</h1>
+<p class="muted">Every reasoning event — even the no-trades. This is the audit trail.</p>
+{% if decisions %}
+<table>
+  <thead><tr>
+    <th>Time</th><th>Kind</th><th>Symbol</th><th>Action</th>
+    <th>Tier</th><th>Strategy ver</th><th>Reasoning</th>
+  </tr></thead>
+  <tbody>
+  {% for d in decisions %}
+    <tr>
+      <td class="muted">{{ d.ts }}</td>
+      <td>{{ d.kind }}</td>
+      <td>{{ d.symbol or '—' }}</td>
+      <td>{{ d.action or '—' }}</td>
+      <td class="muted">{{ d.ai_tier or '—' }}</td>
+      <td class="muted">{{ d.strategy_version }}</td>
+      <td><pre>{{ d.reasoning_md }}</pre></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">No decisions logged yet.</p>
+{% endif %}
+{% endblock %}

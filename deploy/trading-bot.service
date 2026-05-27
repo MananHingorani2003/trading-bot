@@ -1,0 +1,33 @@
+[Unit]
+Description=AI Trading Terminal (paper mode scheduler)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=trader
+Group=trader
+WorkingDirectory=/opt/trading-terminal
+EnvironmentFile=/opt/trading-terminal/.env
+ExecStart=/home/trader/.local/bin/uv run tt schedule --universe nifty500
+Restart=always
+RestartSec=15
+StandardOutput=append:/var/log/trading-bot/out.log
+StandardError=append:/var/log/trading-bot/err.log
+
+# Resource hygiene
+MemoryMax=1G
+CPUQuota=80%
+
+# Security hygiene
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/trading-terminal /var/log/trading-bot
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+[Install]
+WantedBy=multi-user.target

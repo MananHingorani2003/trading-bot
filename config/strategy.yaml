@@ -1,0 +1,38 @@
+version: 0.1.0
+
+portfolio:
+  capital: 50000          # INR — paper capital
+  max_positions: 6
+  max_pct_per_position: 0.18
+  reserve_cash_pct: 0.10
+
+risk:
+  default_stop_loss_pct: 0.06
+  default_target_r_multiple: 2.0
+  daily_loss_halt_pct: 0.03
+  weekly_loss_halt_pct: 0.07
+  no_average_down: true
+
+universe:
+  source: nifty500
+  min_price: 50
+  min_market_cap_cr: 500
+  min_avg_daily_value_cr: 5
+  blacklist:
+    - "*-BE"     # T2T segment
+    - "*-BZ"
+
+filters:
+  earnings_blackout_days: 2
+  skip_circuit_locked_within_days: 5
+
+signals:
+  trend:
+    enabled: true
+    fast_ema: 20
+    slow_ema: 50
+    adx_min: 20
+  mean_revert:
+    enabled: false
+    rsi_low: 30
+    rsi_high: 70

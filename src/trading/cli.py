@@ -152,10 +152,31 @@ def cues_cmd():
 def tg_test(text: str = typer.Argument("hello from tt", help="test message")):
     """Send a test message to Telegram."""
     from trading.alerts import telegram as tg
+    if not tg._configured():
+        console.print("[red]TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID missing in .env")
+        return
     if tg.notify(text):
         console.print("[green]sent")
     else:
-        console.print("[red]not sent — check TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env")
+        console.print("[red]API call failed — check token/chat id are correct")
+
+
+@app.command("config-check")
+def config_check():
+    """Show whether all secrets/services are configured."""
+    from trading.alerts import telegram as tg
+    from trading.ai.client import AIClient
+    from trading.settings import settings
+    tbl = Table(title="Configuration")
+    tbl.add_column("item"); tbl.add_column("status")
+    tbl.add_row("ANTHROPIC_API_KEY", "[green]set" if settings.anthropic_api_key else "[red]MISSING")
+    tbl.add_row("AIClient available", "[green]yes" if AIClient().available else "[red]no")
+    tbl.add_row("TELEGRAM_BOT_TOKEN", "[green]set" if settings.telegram_bot_token else "[red]MISSING")
+    tbl.add_row("TELEGRAM_CHAT_ID",   "[green]set" if settings.telegram_chat_id else "[red]MISSING")
+    tbl.add_row("Telegram push", "[green]configured" if tg._configured() else "[red]disabled")
+    tbl.add_row("Mode", settings.mode)
+    tbl.add_row("Ledger DB", str(settings.ledger_path))
+    console.print(tbl)
 
 
 @app.command("halt")

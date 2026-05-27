@@ -12,6 +12,7 @@ from datetime import date
 
 from trading.ai import prompts
 from trading.ai.client import SONNET, AIClient, parse_json_object
+from trading.alerts import telegram as tg
 from trading.intelligence import news as news_mod
 from trading.intelligence.sentiment import cues_to_dict, fetch_cues
 from trading.knowledge import kb, ledger
@@ -154,5 +155,8 @@ def build_briefing(client: AIClient, *, day: date, strategy_version: str) -> Bri
         )
         kb.index_decision(conn, did)
         kb.index_journal(conn, b.date, b.briefing_md)
+
+    # Push to Telegram (no-op if env vars unset)
+    tg.notify_briefing(b.date, b.mood, b.mood_reason, b.briefing_md)
 
     return b

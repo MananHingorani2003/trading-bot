@@ -141,7 +141,6 @@ def run_day(
             "watch_today": b.watch_today, "positions_at_risk": b.positions_at_risk,
         }
         print(f"[day {today}] mood: {b.mood} ({b.mood_reason})")
-        tg.notify_briefing(b.date, b.mood, b.mood_reason, b.briefing_md)
 
     # 2) Market data
     bars_all = fetch_bars(symbols, today - timedelta(days=history_days + 60), today)

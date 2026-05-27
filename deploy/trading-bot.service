@@ -9,6 +9,8 @@ User=trader
 Group=trader
 WorkingDirectory=/opt/trading-terminal
 EnvironmentFile=/opt/trading-terminal/.env
+# Disable Python stdout/stderr buffering so logs appear in journald immediately
+Environment=PYTHONUNBUFFERED=1
 ExecStart=/opt/trading-terminal/.venv/bin/tt schedule --universe nifty500
 Restart=always
 RestartSec=15

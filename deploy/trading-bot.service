@@ -9,11 +9,14 @@ User=trader
 Group=trader
 WorkingDirectory=/opt/trading-terminal
 EnvironmentFile=/opt/trading-terminal/.env
-ExecStart=/home/trader/.local/bin/uv run tt schedule --universe nifty500
+ExecStart=/opt/trading-terminal/.venv/bin/tt schedule --universe nifty500
 Restart=always
 RestartSec=15
-StandardOutput=append:/var/log/trading-bot/out.log
-StandardError=append:/var/log/trading-bot/err.log
+# Send stdout+stderr to journald so `journalctl -u trading-bot.service -f` shows everything.
+# (Previous file-append target made debugging painful — file-based logs are still
+# easy to re-add later with `StandardOutput=append:/var/log/trading-bot/out.log`.)
+StandardOutput=journal
+StandardError=journal
 
 # Resource hygiene
 MemoryMax=1G

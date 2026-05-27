@@ -42,6 +42,99 @@ git@github.com:MananHingorani2003/trading-bot.git
 
 ---
 
+## 1b. Components — what each piece does
+
+The system is **eight cooperating pieces**, all running inside one Python process under systemd.
+
+```
+              ┌─────────────────────────────────────────────────────┐
+              │                  systemd (Linux)                    │
+              │   keeps the process alive, restarts on crash,       │
+              │   starts on boot, captures logs to journald         │
+              └──────────────────────────┬──────────────────────────┘
+                                         │ runs
+                                         ▼
+              ┌──────────────────────────────────────────────────────┐
+              │     Scheduler (APScheduler, IST timezone)            │
+              │     Fires two jobs Mon–Fri (skips holidays):         │
+              │       08:30 → job_briefing()                         │
+              │       09:30 → job_run_day()                          │
+              └────────┬─────────────────────────────┬───────────────┘
+                       │                             │
+            ┌──────────▼──────────┐       ┌─────────▼─────────────────┐
+            │  Pre-market         │       │  Orchestrator (run_day)   │
+            │  Briefing (Sonnet)  │       │  ─────────────────────    │
+            │  writes mood + body │       │  Universe → Screen →      │
+            │  to journal+KB,     │       │  Trend signals → AI       │
+            │  pushes Telegram    │       │  tiers → Risk gate →      │
+            └──────────┬──────────┘       │  PaperBroker → KB write   │
+                       │                  └──┬────────────────────┬───┘
+                       │ uses                │                    │
+                       ▼                     ▼                    ▼
+              ┌──────────────┐      ┌────────────────┐   ┌────────────────┐
+              │ Intelligence │      │   AI tiers     │   │  Risk gates    │
+              │ ──────────   │      │  ───────       │   │  ─────────     │
+              │ • Cues       │      │ Rules → Haiku  │   │ max positions, │
+              │   (yfinance) │      │ → Sonnet →     │   │ % cap, no-avg- │
+              │ • News (RSS) │      │ Opus           │   │ down, earnings │
+              │ • Events     │      │ Falls back to  │   │ blackout       │
+              │   (earnings) │      │ rules if no    │   │ AI can't       │
+              │              │      │ Claude key     │   │ override these │
+              └──────┬───────┘      └────────┬───────┘   └────────┬───────┘
+                     │                       │                    │
+                     └───────────┬───────────┴────────────────────┘
+                                 │ all writes through
+                                 ▼
+                  ┌─────────────────────────────────────┐
+                  │    PaperBroker (in-process)         │
+                  │  Simulates fills, applies real      │
+                  │  Zerodha costs (STT, GST, DP, etc.) │
+                  └──────────────────┬──────────────────┘
+                                     │
+                                     ▼
+                  ┌─────────────────────────────────────┐
+                  │    Ledger (SQLite, one file)        │
+                  │    /opt/trading-terminal/           │
+                  │           data/ledger.db            │
+                  │                                     │
+                  │  Tables:                            │
+                  │  • positions, trades                │
+                  │  • decisions (every reasoning event)│
+                  │  • theses (buy thesis per position) │
+                  │  • tax_lots, tax_realisations       │
+                  │  • journals (daily briefings)       │
+                  │  • headlines + headlines_fts (news) │
+                  │  • kb_fts (decision/thesis search)  │
+                  └──────────────────┬──────────────────┘
+                                     │ read by
+                       ┌─────────────┼─────────────────┐
+                       ▼             ▼                 ▼
+              ┌──────────────┐ ┌──────────┐  ┌──────────────────┐
+              │   Dashboard  │ │   CLI    │  │   Telegram       │
+              │   (FastAPI)  │ │  (`tt`)  │  │   (push only)    │
+              │  Read-only   │ │ commands │  │ briefings, fills,│
+              │ port 8000    │ │ in shell │  │ EOD, errors      │
+              └──────────────┘ └──────────┘  └──────────────────┘
+```
+
+### Component cheat sheet
+
+| Component | Source files | What it owns | Failure mode |
+|---|---|---|---|
+| **systemd unit** | `deploy/trading-bot.service` | process lifetime, auto-restart, boot start | service shows `failed` → check journalctl |
+| **Scheduler** | `src/trading/scheduler/runner.py` | when jobs fire (IST cron) | wrong timezone → bot fires at wrong hours |
+| **Orchestrator** | `src/trading/orchestrator.py` | end-to-end pipeline for one trading day | crashes mid-run → next run-day resumes from current state |
+| **Briefing** | `src/trading/intelligence/briefing.py` | morning mood doc (Sonnet) | Sonnet parse fails → falls back to rules-only briefing |
+| **AI tiers** | `src/trading/ai/{tiers,client,prompts}.py` | Haiku rank → Sonnet analyse → Opus decide/sell | no API key → rules-only path everywhere |
+| **News + cues + events** | `src/trading/intelligence/{news,sentiment,events}.py` | RSS pull, global cues, earnings | Yahoo blocks → cues show `nan`, briefing still runs |
+| **Risk gates** | `src/trading/risk/gates.py` | hard caps AI cannot override | only blocks bad trades, never crashes |
+| **PaperBroker** | `src/trading/broker/paper.py` | simulated fills + Zerodha cost math + tax lots | insufficient cash → ValueError logged as SKIP |
+| **Ledger DB** | SQLite at `data/ledger.db` | THE source of truth | corruption → restore from weekly `scp` backup |
+| **Dashboard** | `src/trading/dashboard/` | read-only HTTP UI | port collision → use `--port 8001` |
+| **Telegram** | `src/trading/alerts/telegram.py` | push notifications, HALT switch | env vars unset → silent no-op; bot runs anyway |
+
+---
+
 ## 2. Architecture — what runs where
 
 ```
@@ -392,20 +485,67 @@ sudo systemctl start trading-bot.service
 
 ---
 
-## 12. What to expect when the bot is healthy
+## 12. Realtime scenarios — what an actual day looks like
 
-**Every weekday (Mon–Fri, IST), unless NSE holiday:**
-- **08:30** — phone buzzes with mood card (`🟢/🟡/🔴 Pre-market YYYY-MM-DD`) + a 5–8 line briefing
-- **09:30** — pipeline runs; you may get 0–5 fill alerts depending on what the AI decides
-- **EOD** — phone buzzes with summary card (fills count, buys, sells, realised P&L)
+### Scenario A — Trading day (Mon–Fri, NSE open)
 
-**Weekends + NSE holidays:**
-- Silent. One quiet `😴 Skipped YYYY-MM-DD — weekend/NSE holiday: X` message at 09:30 (silenced — won't make sound).
+**Example: Thursday, 29 May 2026 (regular trading day)**
 
-**Costs accumulating:**
-- AWS Lightsail: ~$7/mo, billed monthly
-- Claude API: ~$10–35/mo, charged to your Anthropic account
-- Run `uv run tt ai-cost` weekly to monitor
+| IST time | What happens | What you see on phone |
+|---|---|---|
+| **00:00–08:29** | Bot idle, scheduler waiting | Nothing |
+| **08:30:00** | `job_briefing()` fires. Fetches cues (Yahoo), pulls RSS news into DB, builds positions-news map, calls Sonnet for mood. Writes journal+KB. | `🟢 Pre-market 2026-05-29`<br>`Mood: risk_on — Dow +0.6%, VIX 14`<br>+ 5-8 line markdown body with watch items |
+| **08:30–09:29** | Idle | Nothing |
+| **09:15** | NSE opens. Bot deliberately waits 15 min for opening volatility. | Nothing |
+| **09:30:00** | `job_run_day()` fires. Walks the full pipeline. | Nothing yet — pipeline takes ~2-5 min on Nifty 500 |
+| **09:31** | Halt-check passes → universe loaded → fundamentals fetched → 500 screened down to ~280 → trend signals → 20 candidates | Nothing |
+| **09:32** | Haiku ranks top 8. Sonnet analyses each (~3s/stock). Opus picks final buys (~6s). | Nothing |
+| **09:33** | Each BUY/SELL the broker fills pushes a per-fill alert | `🟢⬆ BUY TATAMOTORS  12 @ ₹720.36 — net ₹8,654.57`<br>(one buzz per fill, 0-3 typical) |
+| **09:33** | EOD summary fires (yes, immediately — paper trading does the whole "day" in one pass) | `EOD 2026-05-29`<br>`Fills: 2  Buys: TATAMOTORS, ICICIBANK  Sells: —  Realised P&L: ₹0.00` |
+| **09:33–15:25** | Bot idle | Nothing |
+| **15:30** | NSE closes | Nothing |
+| **15:30–23:59** | Bot idle, scheduler queued for next day | Nothing |
+
+**Net: typically 2-5 phone buzzes on a trading day.**
+
+### Scenario B — Weekend or NSE holiday (e.g. tomorrow, 28 May 2026 = Bakri-Id)
+
+| IST time | What happens | What you see on phone |
+|---|---|---|
+| **08:30:00** | `job_briefing()` fires, checks calendar, sees holiday/weekend → sends one polite message → returns | `😴 2026-05-28 — markets closed`<br>`Bakri-Id / Eid-ul-Adha (tentative)`<br>`Bot is resting today. No briefing, no trades. Next run-day will be the next trading session.` |
+| **09:30:00** | `job_run_day()` fires, sees same flag, silently returns (no duplicate alert) | Nothing |
+| **rest of day** | Bot idle | Nothing |
+
+**Net: one Telegram message in the morning confirming the bot is alive and aware that markets are closed.** No surprises, no silent absences.
+
+### Scenario C — Something genuinely broken
+
+Most common: yfinance gives a 429 (rate-limited), Anthropic API key expires, network blip.
+
+| What happened | You see |
+|---|---|
+| Network failed during briefing | `⚠️ Error in scheduled briefing` + Python traceback (truncated) |
+| Network failed during run-day | `⚠️ Error in scheduled run-day` + traceback |
+| Bot process crashed | systemd auto-restarts within 15s — *you don't get a Telegram*, but bot resumes |
+| Bot can't restart 5x in a row | systemd gives up — bot stays dead until you SSH in (no Telegram). **This is why §11 weekly health check exists.** |
+
+### Scenario D — You hit HALT
+
+You sent `tt halt "lunch break"` from your phone or laptop.
+
+| When | What happens |
+|---|---|
+| Immediately | `⛔ Trading HALTED — lunch break` arrives |
+| Next 08:30 brief | Briefing job runs normally (briefing always allowed; it doesn't trade) |
+| Next 09:30 run-day | Aborts at the start: `⛔ Skipped run-day 2026-05-29 — HALT flag set` |
+| Until `tt unhalt` | All run-days skip; briefings continue |
+| When you `tt unhalt` | `✅ Trading RESUMED` arrives; next run-day fires normally |
+
+### Costs accruing in the background
+
+- **AWS Lightsail**: $7/mo, billed on the 1st (covered by $200 credits for ~28 months)
+- **Claude API**: scales with activity. Holiday-heavy weeks ≈ $5/mo. Active 5-day weeks ≈ $8-15/mo. Run `uv run tt ai-cost` weekly to see exact spend.
+- **Snapshots** (if you enabled them in Lightsail): $0.50-1/mo
 
 ---
 

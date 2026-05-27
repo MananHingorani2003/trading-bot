@@ -28,8 +28,12 @@ holidays:
   - { date: "2026-04-03", reason: "Good Friday" }
   - { date: "2026-04-14", reason: "Dr. Baba Saheb Ambedkar Jayanti" }
   - { date: "2026-05-01", reason: "Maharashtra Day" }
+  - { date: "2026-05-28", reason: "Bakri-Id / Eid-ul-Adha (tentative)" }
+  - { date: "2026-06-26", reason: "Muharram (tentative)" }
   - { date: "2026-08-15", reason: "Independence Day" }
+  - { date: "2026-09-04", reason: "Janmashtami (tentative)" }
   - { date: "2026-10-02", reason: "Mahatma Gandhi Jayanti" }
+  - { date: "2026-10-20", reason: "Dussehra (tentative)" }
   - { date: "2026-11-09", reason: "Diwali Laxmi Pujan (tentative)" }
   - { date: "2026-11-25", reason: "Guru Nanak Jayanti" }
   - { date: "2026-12-25", reason: "Christmas" }

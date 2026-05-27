@@ -40,6 +40,12 @@ def job_briefing() -> None:
     closed = why_closed(today)
     if closed:
         print(f"[brief] skipping {today} — {closed}")
+        tg.notify(
+            f"😴 *{today.isoformat()} — markets closed*\n"
+            f"_{closed}_\n\n"
+            f"Bot is resting today. No briefing, no trades. "
+            f"Next run-day will be the next trading session."
+        )
         return
     try:
         cfg = load_strategy()
@@ -54,6 +60,7 @@ def job_run_day(*, universe: str = "nifty500", universe_limit: int | None = None
     today = _today_ist()
     closed = why_closed(today)
     if closed:
+        # Briefing job already sent the holiday note at 08:30; silent here.
         print(f"[run-day] skipping {today} — {closed}")
         return
     try:

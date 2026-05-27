@@ -9,7 +9,7 @@ import json
 from dataclasses import asdict, dataclass
 
 from trading.ai import prompts
-from trading.ai.client import HAIKU, OPUS, SONNET, AIClient, parse_json
+from trading.ai.client import HAIKU, OPUS, SONNET, AIClient, parse_json, parse_json_object
 from trading.data.fundamentals import Fundamentals
 from trading.knowledge import kb, ledger
 from trading.strategy.trend import Candidate
@@ -154,7 +154,7 @@ def sonnet_analyse(
         max_tokens=600, temperature=0.2,
     )
     try:
-        d = parse_json(r.text)
+        d = parse_json_object(r.text)
         analysis = SonnetAnalysis(symbol=candidate.symbol, **{k: d[k] for k in (
             "setup_quality", "key_positives", "key_risks",
             "fundamental_flag", "recommendation", "reason_md",
@@ -227,8 +227,8 @@ def opus_decide(
         user=user, max_tokens=1200, temperature=0.2,
     )
     try:
-        d = parse_json(r.text)
-        buys_raw = d.get("buys", []) if isinstance(d, dict) else []
+        d = parse_json_object(r.text)
+        buys_raw = d.get("buys", [])
         buys = [BuyDecision(**{k: b[k] for k in ("symbol", "confidence", "thesis_md", "time_horizon", "catalysts")}) for b in buys_raw][:capacity]
     except Exception as e:                       # noqa: BLE001
         _log_decision(
@@ -320,7 +320,7 @@ def opus_sell_review(
         max_tokens=600, temperature=0.2,
     )
     try:
-        d = parse_json(r.text)
+        d = parse_json_object(r.text)
         sd = SellDecision(
             action=str(d.get("action", "HOLD")).upper(),
             trim_pct=float(d.get("trim_pct", 0.0) or 0.0),

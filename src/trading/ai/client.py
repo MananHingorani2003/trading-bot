@@ -74,6 +74,8 @@ def parse_json(text: str) -> dict | list:
     """Extract the first JSON object/array from a model response.
 
     Models occasionally wrap JSON in prose or code fences; strip both.
+    Prefers `{` over `[` so an object embedded in a sentence still parses
+    as an object rather than getting beaten to it by a stray list.
     """
     t = text.strip()
     if t.startswith("```"):
@@ -81,7 +83,7 @@ def parse_json(text: str) -> dict | list:
         if t.startswith("json"):
             t = t[4:]
         t = t.rsplit("```", 1)[0].strip()
-    # Find the first { or [ and matching close — simple scan good enough for our prompts
+    # Try object first, then array
     for opener, closer in (("{", "}"), ("[", "]")):
         i = t.find(opener)
         if i == -1:
@@ -95,3 +97,13 @@ def parse_json(text: str) -> dict | list:
                 if depth == 0:
                     return json.loads(t[i:j + 1])
     raise ValueError(f"no JSON found in: {text[:200]}")
+
+
+def parse_json_object(text: str) -> dict:
+    """Like parse_json but always returns a dict — unwraps `[ {...} ]` shapes."""
+    d = parse_json(text)
+    if isinstance(d, list):
+        d = d[0] if d and isinstance(d[0], dict) else {}
+    if not isinstance(d, dict):
+        raise ValueError(f"expected JSON object, got {type(d).__name__}")
+    return d

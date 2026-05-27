@@ -11,7 +11,7 @@ from dataclasses import asdict, dataclass
 from datetime import date
 
 from trading.ai import prompts
-from trading.ai.client import SONNET, AIClient, parse_json
+from trading.ai.client import SONNET, AIClient, parse_json_object
 from trading.intelligence import news as news_mod
 from trading.intelligence.sentiment import cues_to_dict, fetch_cues
 from trading.knowledge import kb, ledger
@@ -100,7 +100,7 @@ def build_briefing(client: AIClient, *, day: date, strategy_version: str) -> Bri
             max_tokens=800, temperature=0.3,
         )
         try:
-            d = parse_json(r.text)
+            d = parse_json_object(r.text)
             b = Briefing(
                 date=day.isoformat(),
                 mood=str(d.get("mood", "neutral")),

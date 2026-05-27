@@ -38,12 +38,16 @@ def fetch_cues(as_of: date | None = None) -> list[CueReading]:
         try:
             df = yf.download(tkr, start=start.isoformat(), end=end.isoformat(),
                              progress=False, auto_adjust=False)
-            if df.empty or len(df) < 2:
+            if df.empty:
                 out.append(CueReading(name, tkr, None, None))
                 continue
             close = df["Close"]
-            if hasattr(close, "columns"):       # rare: MultiIndex
+            if hasattr(close, "columns"):       # MultiIndex (rare)
                 close = close.iloc[:, 0]
+            close = close.dropna()              # Yahoo occasionally emits NaN bars
+            if len(close) < 2:
+                out.append(CueReading(name, tkr, None, None))
+                continue
             last = float(close.iloc[-1])
             prev = float(close.iloc[-2])
             pct = (last - prev) / prev * 100 if prev else 0.0

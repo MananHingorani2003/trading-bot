@@ -51,6 +51,7 @@ def momentum_candidates(
     cutoff_24h = (datetime.now().astimezone() - timedelta(hours=24)).isoformat()
 
     for sym, df in bars_by_symbol.items():
+        df = df.dropna(subset=["Close", "High", "Low", "Volume"])
         lb = cfg.breakout_lookback_days
         if len(df) < lb + 22:
             continue

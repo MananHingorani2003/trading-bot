@@ -279,12 +279,12 @@ def run_day(
         report.haiku_picks = picks
         cand_by_sym = {c.symbol: c for c in cands}
 
-        shortlist = []
+        shortlist: list = []
+        watchlist: list = []                    # 'watch' fallback if no consider_buy
         for sym in picks:
             cand = cand_by_sym.get(sym)
             if not cand:
                 continue
-            # Per-symbol recent news from the 7-day store (FTS5; ticker + company name)
             hits = news_mod.for_symbol(
                 sym, company=company_by_symbol.get(sym), days=7, limit=5,
             )
@@ -293,11 +293,24 @@ def run_day(
                 client, cand, funds.get(sym),
                 strategy_version=cfg.version, news_lines=news_lines,
             )
-            if analysis and analysis.recommendation == "consider_buy":
+            if not analysis:
+                continue
+            if analysis.recommendation == "consider_buy":
                 report.sonnet_recommends.append(sym)
                 shortlist.append((cand, analysis))
+            elif analysis.recommendation == "watch":
+                watchlist.append((cand, analysis))
             if len(shortlist) >= TopN_AFTER_SONNET:
                 break
+
+        # If Sonnet was too conservative and we got no clear buys, promote the
+        # 'watch' recommendations into the shortlist so Opus still gets to
+        # decide. Opus is the final gatekeeper anyway; better to let it see
+        # candidates with full context than to silently exit with no buys.
+        if not shortlist and watchlist:
+            print(f"[day {today}] no consider_buy from Sonnet; promoting {len(watchlist)} 'watch' to Opus")
+            shortlist = watchlist[:TopN_AFTER_SONNET]
+            report.sonnet_recommends.extend(c.symbol for c, _ in shortlist)
 
         with ledger.connect() as conn:
             n_open = len(ledger.open_positions(conn))

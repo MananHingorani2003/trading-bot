@@ -38,6 +38,10 @@ def trend_candidates(
     """Return BUY candidates where price is in a confirmed up-trend."""
     out: list[Candidate] = []
     for sym, df in bars_by_symbol.items():
+        # yfinance occasionally returns trailing rows with NaN OHLC (partial
+        # session, data sync delay). Drop them — bad data here propagates to
+        # the AI as `NaN` and the AI correctly refuses to analyse.
+        df = df.dropna(subset=["Close", "High", "Low"])
         if len(df) < slow + 20:
             continue
         close = df["Close"]

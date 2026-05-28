@@ -39,6 +39,8 @@ def fetch_daily(symbol: str, start: date, end: date, *, force: bool = False) -> 
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = [c[0] for c in df.columns]
     df = df[["Open", "High", "Low", "Close", "Volume"]]
+    # Drop trailing partial-session NaN rows that yfinance sometimes returns.
+    df = df.dropna(subset=["Close"])
     df.to_parquet(cp)
     return df.loc[str(start):str(end)]
 

@@ -46,6 +46,7 @@ class PaperBroker(Broker):
                         avg_price=fill_price,
                         opened_at=ts,
                         strategy_ver="paper",
+                        sleeve=order.sleeve,
                     )
                 else:
                     new_qty = pos_row["qty"] + order.qty

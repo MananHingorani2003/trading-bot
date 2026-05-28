@@ -2,7 +2,7 @@ version: 0.1.0
 
 portfolio:
   capital: 50000          # INR — paper capital
-  max_positions: 6
+  max_positions: 7        # 5 core + 2 aggressive
   max_pct_per_position: 0.18
   reserve_cash_pct: 0.10
 
@@ -12,6 +12,28 @@ risk:
   daily_loss_halt_pct: 0.03
   weekly_loss_halt_pct: 0.07
   no_average_down: true
+
+sleeves:
+  # Core: stable trend-followers. Most of the book.
+  core:
+    capital_pct: 0.80          # 80% of total capital reserved for core
+    max_positions: 5
+    max_pct_per_position: 0.18 # of TOTAL capital
+    stop_loss_pct: 0.06
+    target_r_multiple: 2.0
+  # Aggressive: news-catalyst breakouts. Smaller stocks OK. Tighter stops.
+  aggressive:
+    capital_pct: 0.20          # 20% of total capital
+    max_positions: 2
+    max_pct_per_position: 0.10 # of TOTAL capital (so <= sleeve cap)
+    stop_loss_pct: 0.04        # tight — risky setups die fast
+    target_r_multiple: 3.0     # asymmetric — these can run
+    min_market_cap_cr: 200     # smaller names allowed
+    min_avg_daily_value_cr: 2  # lower liquidity floor (still tradeable)
+    require_news_hours: 48     # must have headline in last N hours
+    breakout_lookback_days: 20 # close must exceed prior N-day high
+    min_volume_surge: 1.8      # today's volume / 20d avg
+    rsi_max: 80
 
 universe:
   source: nifty500

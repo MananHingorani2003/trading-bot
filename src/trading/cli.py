@@ -40,10 +40,12 @@ def run_day_cmd(
     tbl.add_column("metric"); tbl.add_column("value")
     tbl.add_row("Universe size",       str(r.universe_size))
     tbl.add_row("After screen",        str(r.after_screen))
-    tbl.add_row("Trend candidates",    str(r.n_candidates))
+    tbl.add_row("Trend candidates (core)",      str(r.n_candidates))
+    tbl.add_row("Momentum candidates (aggr.)",  str(r.n_aggressive_candidates))
     tbl.add_row("Haiku top picks",     ", ".join(r.haiku_picks) or "—")
     tbl.add_row("Sonnet recommends",   ", ".join(r.sonnet_recommends) or "—")
-    tbl.add_row("Opus buys",           ", ".join(r.opus_buys) or "—")
+    tbl.add_row("Core buys",           ", ".join(r.opus_buys) or "—")
+    tbl.add_row("Aggressive buys",     ", ".join(r.aggressive_buys) or "—")
     tbl.add_row("Sells",               ", ".join(r.sells) or "—")
     tbl.add_row("Fills",               str(r.fills))
     if r.errors:
@@ -203,6 +205,31 @@ def schedule_cmd(
     """Run forever — pre-market brief at 08:30 IST, full pipeline at 09:30 IST."""
     from trading.scheduler.runner import run_forever
     run_forever(universe=universe, universe_limit=(universe_limit or None))
+
+
+@app.command("sleeves")
+def sleeves_cmd():
+    """Show core vs aggressive sleeve allocation + current usage."""
+    from trading.settings import load_strategy
+    cfg = load_strategy()
+    with ledger.connect() as conn:
+        positions = list(conn.execute(
+            "SELECT symbol, qty, avg_price, sleeve FROM positions WHERE status='open'"
+        ))
+    if not cfg.sleeves:
+        console.print("[yellow]No sleeves configured in strategy.yaml")
+        return
+    tbl = Table(title="Sleeve allocation (paper)")
+    tbl.add_column("sleeve"); tbl.add_column("cap %", justify="right")
+    tbl.add_column("cap INR", justify="right"); tbl.add_column("used INR", justify="right")
+    tbl.add_column("positions", justify="right"); tbl.add_column("max", justify="right")
+    for name, sl in cfg.sleeves.items():
+        cap = cfg.portfolio.capital * sl.capital_pct
+        used = sum(p["qty"] * p["avg_price"] for p in positions if (p["sleeve"] or "core") == name)
+        n_open = sum(1 for p in positions if (p["sleeve"] or "core") == name)
+        tbl.add_row(name, f"{sl.capital_pct*100:.0f}%", f"₹{cap:,.0f}",
+                    f"₹{used:,.0f}", str(n_open), str(sl.max_positions))
+    console.print(tbl)
 
 
 @app.command("ai-cost")

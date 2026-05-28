@@ -45,6 +45,21 @@ class RiskCfg(BaseModel):
     no_average_down: bool
 
 
+class SleeveCfg(BaseModel):
+    capital_pct: float
+    max_positions: int
+    max_pct_per_position: float
+    stop_loss_pct: float
+    target_r_multiple: float
+    # Aggressive-only fields, optional for core
+    min_market_cap_cr: float | None = None
+    min_avg_daily_value_cr: float | None = None
+    require_news_hours: int | None = None
+    breakout_lookback_days: int | None = None
+    min_volume_surge: float | None = None
+    rsi_max: float | None = None
+
+
 class StrategyCfg(BaseModel):
     version: str
     portfolio: PortfolioCfg
@@ -52,6 +67,7 @@ class StrategyCfg(BaseModel):
     universe: dict
     filters: dict
     signals: dict
+    sleeves: dict[str, SleeveCfg] = {}
 
 
 def load_strategy() -> StrategyCfg:

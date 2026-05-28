@@ -42,6 +42,35 @@ git@github.com:MananHingorani2003/trading-bot.git
 
 ---
 
+## 1a. Capital sleeves — core vs aggressive
+
+Your capital is split into two books with **different risk profiles**:
+
+| | Core (80%) | Aggressive (20%) |
+|---|---|---|
+| Capital | ₹40,000 | ₹10,000 |
+| Strategy | Trend-following (EMA20>EMA50 + ADX + RSI) | News-catalyst breakout + volume surge |
+| Max positions | 5 | 2 |
+| Per-position cap | 18% of total | 10% of total |
+| Stop loss | 6% | 4% (tighter — risky setups die fast) |
+| Target R-multiple | 2× | 3× (asymmetric reward chase) |
+| Min market cap | ₹500cr | ₹200cr (smaller names OK) |
+| Min liquidity | ₹5cr avg daily value | ₹2cr |
+| News requirement | None | Must have headline in last 48h |
+| Holding period | Days–weeks | Days–weeks (typically shorter) |
+
+**Worst-case math** if every aggressive position blows through its stop:
+2 positions × 10% capital × -4% = **-0.8% of total capital**. Acceptable damage to chase upside.
+
+Inspect current sleeve usage anytime:
+```bash
+uv run tt sleeves
+```
+
+Positions table in the dashboard now has a `sleeve` column showing which book each holding belongs to.
+
+---
+
 ## 1b. Components — what each piece does
 
 The system is **eight cooperating pieces**, all running inside one Python process under systemd.

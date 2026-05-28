@@ -25,8 +25,9 @@ TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 app = FastAPI(title="Trading Terminal")
 
 
-def _q(conn, sql, *args):
-    return [dict(r) for r in conn.execute(sql, args)]
+def _q(conn, sql, params: tuple = ()):
+    """Tiny SQL helper. `params` is a tuple/list of bind values, e.g. (fy,)."""
+    return [dict(r) for r in conn.execute(sql, params)]
 
 
 @app.get("/", response_class=HTMLResponse)

@@ -20,6 +20,7 @@ class Order:
     product: Product = "CNC"
     client_order_id: str | None = None     # for idempotency
     decision_id: int | None = None
+    sleeve: str = "core"                   # 'core' | 'aggressive'
 
 
 @dataclass

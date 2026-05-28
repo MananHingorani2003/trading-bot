@@ -30,12 +30,14 @@ from trading.knowledge import kb, ledger
 from trading.knowledge.migrations import migrate
 from trading.risk.gates import gate_buy, stop_and_target
 from trading.settings import load_strategy
+from trading.strategy.momentum import momentum_candidates
 from trading.strategy.screen import screen_many
-from trading.strategy.trend import exit_signal, trend_candidates
+from trading.strategy.trend import Candidate, exit_signal, trend_candidates
 
 TopN_AFTER_RULES = 30
 TopN_AFTER_HAIKU = 8
 TopN_AFTER_SONNET = 5
+MAX_AGGRESSIVE_FROM_RULES = 8         # cap raw momentum candidates fed into the AI
 
 
 @dataclass
@@ -45,9 +47,11 @@ class DayReport:
     universe_size: int = 0
     after_screen: int = 0
     n_candidates: int = 0
+    n_aggressive_candidates: int = 0
     haiku_picks: list[str] = field(default_factory=list)
     sonnet_recommends: list[str] = field(default_factory=list)
-    opus_buys: list[str] = field(default_factory=list)
+    opus_buys: list[str] = field(default_factory=list)        # core picks
+    aggressive_buys: list[str] = field(default_factory=list)  # aggressive picks
     sells: list[str] = field(default_factory=list)
     holds_after_review: list[str] = field(default_factory=list)
     fills: int = 0
@@ -161,7 +165,39 @@ def run_day(
         adx_min=cfg.signals["trend"]["adx_min"],
     )[:TopN_AFTER_RULES]
     report.n_candidates = len(cands)
-    print(f"[day {today}] trend candidates: {len(cands)}")
+    print(f"[day {today}] trend candidates (core): {len(cands)}")
+
+    # --- Aggressive sleeve: news-catalyst breakouts ---
+    aggressive_cfg = cfg.sleeves.get("aggressive") if cfg.sleeves else None
+    agg_cands_raw = []
+    if aggressive_cfg:
+        try:
+            # company map for news lookups
+            from trading.data.universe import load_nifty500
+            comp_map = {r["symbol"]: r["company"] for r in load_nifty500()}
+        except Exception:                       # noqa: BLE001
+            comp_map = {}
+        agg_cands_raw = momentum_candidates(
+            bars_pass, funds, comp_map, cfg=aggressive_cfg,
+        )[:MAX_AGGRESSIVE_FROM_RULES]
+        report.n_aggressive_candidates = len(agg_cands_raw)
+        print(f"[day {today}] momentum candidates (aggressive): {len(agg_cands_raw)}")
+
+    # Convert MomentumCandidate -> Candidate so AI tiers can reuse their shapes.
+    # Keep a side-table tracking which symbols are aggressive sleeve.
+    agg_symbols: set[str] = set()
+    for m in agg_cands_raw:
+        agg_symbols.add(m.symbol)
+        if any(c.symbol == m.symbol for c in cands):
+            continue                            # avoid double-listing if both signals fire
+        cands.append(Candidate(
+            symbol=m.symbol, last_close=m.last_close,
+            fast_ema=m.last_close, slow_ema=m.last_close,
+            adx=0.0, rsi=m.rsi, atr_pct=m.atr_pct,
+            pct_from_high=0.0, vol_surge=m.vol_surge,
+            score=m.score,
+            reason=f"[aggressive] {m.reason} | latest: {m.latest_news_title}",
+        ))
 
     # 4) Reconstruct cash for this day's broker session
     broker = PaperBroker(starting_cash=cfg.portfolio.capital)
@@ -280,6 +316,9 @@ def run_day(
             if not cand:
                 continue
 
+            # Route to the right sleeve based on which signal generator produced it
+            sleeve = "aggressive" if buy.symbol in agg_symbols else "core"
+
             # Earnings blackout — last check before risk gate
             blackout, why = in_blackout(buy.symbol, today, days=2)
             if blackout:
@@ -287,14 +326,15 @@ def run_day(
                     did = ledger.insert_decision(
                         conn, kind="buy_exec", symbol=buy.symbol, action="SKIP",
                         strategy_version=cfg.version, ai_tier="rules",
-                        reasoning_md=f"earnings blackout: {why}",
+                        reasoning_md=f"[{sleeve}] earnings blackout: {why}",
                     )
                     kb.index_decision(conn, did)
                 report.errors.append(f"buy {buy.symbol} blocked: {why}")
                 continue
 
             gate = gate_buy(
-                symbol=buy.symbol, price=cand.last_close, cfg=cfg, cash_available=broker.cash(),
+                symbol=buy.symbol, price=cand.last_close, cfg=cfg,
+                cash_available=broker.cash(), sleeve=sleeve,
             )
             ts = f"{today.isoformat()}T10:00:00"
             with ledger.connect() as conn:
@@ -303,32 +343,44 @@ def run_day(
                     action="BUY" if gate.allowed else "SKIP",
                     strategy_version=cfg.version, ai_tier="opus",
                     reasoning_md=(
-                        f"gate={gate.reason} qty={gate.qty} conf={buy.confidence:.2f}\n\n"
+                        f"[{sleeve}] gate={gate.reason} qty={gate.qty} conf={buy.confidence:.2f}\n\n"
                         f"thesis: {buy.thesis_md}"
                     ),
                 )
                 kb.index_decision(conn, did)
 
             if not gate.allowed:
-                report.errors.append(f"buy {buy.symbol} blocked: {gate.reason}")
+                report.errors.append(f"buy {buy.symbol} blocked ({sleeve}): {gate.reason}")
                 continue
 
             try:
-                fill = broker.place_order(Order(symbol=buy.symbol, side="BUY", qty=gate.qty, decision_id=did), ref_price=cand.last_close, ts=ts)
-                tg.notify_fill("BUY", buy.symbol, gate.qty, fill.price, gate.qty * fill.price)
-                stop, target = stop_and_target(entry=fill.price, atr_pct=cand.atr_pct, cfg=cfg)
+                fill = broker.place_order(
+                    Order(symbol=buy.symbol, side="BUY", qty=gate.qty,
+                          decision_id=did, sleeve=sleeve),
+                    ref_price=cand.last_close, ts=ts,
+                )
+                tg.notify_fill(
+                    f"BUY[{sleeve[:3]}]", buy.symbol, gate.qty, fill.price,
+                    gate.qty * fill.price,
+                )
+                stop, target = stop_and_target(
+                    entry=fill.price, atr_pct=cand.atr_pct, cfg=cfg, sleeve=sleeve,
+                )
                 with ledger.connect() as conn:
                     pos = ledger.find_open_position(conn, buy.symbol)
                     thid = conn.execute(
                         """INSERT INTO theses (position_id, summary_md, target_price, stop_price,
                                               time_horizon, catalysts, created_at)
                            VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                        (pos["id"], buy.thesis_md, target, stop, buy.time_horizon,
-                         ",".join(buy.catalysts), ts),
+                        (pos["id"], f"[{sleeve}] " + buy.thesis_md, target, stop,
+                         buy.time_horizon, ",".join(buy.catalysts), ts),
                     ).lastrowid
                     conn.execute("UPDATE positions SET thesis_id=? WHERE id=?", (thid, pos["id"]))
                     kb.index_thesis(conn, int(thid))
-                report.opus_buys.append(buy.symbol)
+                if sleeve == "aggressive":
+                    report.aggressive_buys.append(buy.symbol)
+                else:
+                    report.opus_buys.append(buy.symbol)
                 report.fills += 1
             except Exception as e:                  # noqa: BLE001
                 report.errors.append(f"buy {buy.symbol}: {e}")

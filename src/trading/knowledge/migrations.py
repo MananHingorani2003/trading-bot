@@ -62,9 +62,21 @@ def _m3_headlines(conn: sqlite3.Connection) -> None:
     """)
 
 
+def _m4_sleeves(conn: sqlite3.Connection) -> None:
+    """v4: positions.sleeve column ('core' | 'aggressive'). Default 'core'
+    so pre-existing rows stay in the core book."""
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(positions)")]
+    if "sleeve" not in cols:
+        conn.execute(
+            "ALTER TABLE positions ADD COLUMN sleeve TEXT NOT NULL DEFAULT 'core'"
+        )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_positions_sleeve ON positions(sleeve)")
+
+
 MIGRATIONS: list[tuple[int, Callable[[sqlite3.Connection], None]]] = [
     (2, _m2_fts5),
     (3, _m3_headlines),
+    (4, _m4_sleeves),
 ]
 
 

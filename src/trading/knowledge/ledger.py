@@ -112,11 +112,13 @@ def open_position(
     opened_at: str,
     strategy_ver: str,
     thesis_id: int | None = None,
+    sleeve: str = "core",
 ) -> int:
     cur = conn.execute(
-        """INSERT INTO positions (symbol, qty, avg_price, opened_at, status, thesis_id, strategy_ver)
-           VALUES (?,?,?,?, 'open', ?, ?)""",
-        (symbol, qty, avg_price, opened_at, thesis_id, strategy_ver),
+        """INSERT INTO positions
+           (symbol, qty, avg_price, opened_at, status, thesis_id, strategy_ver, sleeve)
+           VALUES (?,?,?,?, 'open', ?, ?, ?)""",
+        (symbol, qty, avg_price, opened_at, thesis_id, strategy_ver, sleeve),
     )
     return int(cur.lastrowid)
 

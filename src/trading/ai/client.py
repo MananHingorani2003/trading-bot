@@ -55,13 +55,17 @@ class AIClient:
     ) -> AIResponse:
         if self._client is None:
             raise RuntimeError("AI client not available — set ANTHROPIC_API_KEY and install [live]")
-        r = self._client.messages.create(
-            model=model,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            system=system,
-            messages=[{"role": "user", "content": user}],
-        )
+        kwargs: dict = {
+            "model": model,
+            "max_tokens": max_tokens,
+            "system": system,
+            "messages": [{"role": "user", "content": user}],
+        }
+        # Opus 4.x deprecated `temperature` — omit for opus models.
+        # Haiku/Sonnet still accept it.
+        if not model.startswith("claude-opus"):
+            kwargs["temperature"] = temperature
+        r = self._client.messages.create(**kwargs)
         text = "".join(b.text for b in r.content if getattr(b, "type", None) == "text")
         usage = r.usage
         ti, to = usage.input_tokens, usage.output_tokens

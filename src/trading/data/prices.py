@@ -48,6 +48,9 @@ def fetch_daily(symbol: str, start: date, end: date, *, force: bool = False) -> 
 def fetch_many(symbols: list[str], start: date, end: date) -> dict[str, pd.DataFrame]:
     out: dict[str, pd.DataFrame] = {}
     for s in symbols:
+        # Skip known non-tradeable tickers (corp-action placeholders, indices)
+        if s.startswith(("DUMMY", "NIFTY")):
+            continue
         try:
             df = fetch_daily(s, start, end)
             if not df.empty:

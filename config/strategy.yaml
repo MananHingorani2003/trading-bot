@@ -43,6 +43,8 @@ universe:
   blacklist:
     - "*-BE"     # T2T segment
     - "*-BZ"
+    - "DUMMY*"   # NSE corporate-action placeholders (Vedanta demerger etc.)
+    - "NIFTY*"   # index symbols sometimes appear in lists
 
 filters:
   earnings_blackout_days: 2

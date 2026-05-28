@@ -151,7 +151,7 @@ def sonnet_analyse(
     )
     r = client.message(
         model=SONNET, system=prompts.SONNET_ANALYSE_SYSTEM, user=user,
-        max_tokens=600, temperature=0.2,
+        max_tokens=1500, temperature=0.2,
     )
     try:
         d = parse_json_object(
@@ -227,7 +227,7 @@ def opus_decide(
     r = client.message(
         model=OPUS,
         system=prompts.OPUS_DECIDE_SYSTEM.format(capital=capital, max_positions=max_positions),
-        user=user, max_tokens=1200, temperature=0.2,
+        user=user, max_tokens=2500, temperature=0.2,
     )
     try:
         d = parse_json_object(
@@ -323,7 +323,7 @@ def opus_sell_review(
 
     r = client.message(
         model=OPUS, system=prompts.OPUS_SELL_SYSTEM, user=user,
-        max_tokens=600, temperature=0.2,
+        max_tokens=1500, temperature=0.2,
     )
     try:
         d = parse_json_object(

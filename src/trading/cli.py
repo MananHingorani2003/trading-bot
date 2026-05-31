@@ -229,11 +229,20 @@ def sync_prod(
     key: str = typer.Option("~/.ssh/lightsail-mumbai.pem", help="SSH private key path"),
     user: str = typer.Option("ubuntu", help="SSH user on VPS"),
     snapshot_dir: str = typer.Option("~/Backups", help="Where to keep timestamped snapshots"),
+    launch_dashboard: bool = typer.Option(
+        False, "--dashboard", "-d",
+        help="After syncing, launch the dashboard and open it in your browser",
+    ),
+    host: str = typer.Option("127.0.0.1", help="Dashboard host (used with --dashboard)"),
+    port: int = typer.Option(8000, help="Dashboard port (used with --dashboard)"),
 ):
     """One-shot: scp the prod ledger.db from the VPS to local data/ledger.db.
 
     Also backs up the existing local db first, then saves a timestamped
     snapshot in ~/Backups so you have a recovery point. Safe to run anytime.
+
+    Add --dashboard (-d) to also launch the dashboard and pop your browser
+    open right after syncing — useful for "pull and browse" in one step.
     """
     import subprocess
     from datetime import datetime
@@ -269,6 +278,24 @@ def sync_prod(
     copy2(local, snap)
     size_kb = local.stat().st_size / 1024
     console.print(f"[green]synced ({size_kb:.1f} KB). daily snapshot: {snap}")
+
+    # 4. Optional: launch dashboard + open browser
+    if launch_dashboard:
+        import threading
+        import time
+        import webbrowser
+        import uvicorn
+
+        url = f"http://{host}:{port}"
+        console.print(f"[cyan]launching dashboard at {url} — Ctrl+C to stop[/cyan]")
+
+        # Open the browser shortly after uvicorn starts so the page actually loads
+        def _open_after_delay():
+            time.sleep(1.5)
+            webbrowser.open(url)
+
+        threading.Thread(target=_open_after_delay, daemon=True).start()
+        uvicorn.run("trading.dashboard.app:app", host=host, port=port, reload=False, log_level="warning")
 
 
 @app.command("sleeves")

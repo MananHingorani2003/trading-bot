@@ -219,7 +219,8 @@ def watchlist_cmd(days: int = typer.Option(14, help="WATCH lookback window")):
         console.print("[yellow]watchlist empty — no recent WATCH decisions")
         return
     for w in watches:
-        tbl.add_row(w.symbol, w.last_watch_ts[:10], str(w.days_ago), w.last_reason_excerpt[:160])
+        # CLI: truncate to keep terminal output tidy; dashboard shows full
+        tbl.add_row(w.symbol, w.last_watch_ts[:10], str(w.days_ago), w.last_reason[:200])
     console.print(tbl)
 
 

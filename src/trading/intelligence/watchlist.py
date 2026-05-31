@@ -36,7 +36,7 @@ class WatchEntry:
     symbol: str
     last_watch_ts: str
     days_ago: int
-    last_reason_excerpt: str
+    last_reason: str           # FULL Sonnet reasoning_md; truncate at display time
 
 
 def active_watches(*, max_age_days: int = DEFAULT_MAX_AGE_DAYS, limit: int = DEFAULT_MAX_N) -> list[WatchEntry]:
@@ -59,9 +59,9 @@ def active_watches(*, max_age_days: int = DEFAULT_MAX_AGE_DAYS, limit: int = DEF
         for r in rows:
             sym = r["symbol"]
             last_ts = r["last_ts"]
-            # Grab the reasoning excerpt from that last WATCH
-            excerpt_row = conn.execute(
-                """SELECT substr(reasoning_md, 1, 200) AS excerpt
+            # Grab the FULL Sonnet reasoning from that last WATCH (no SQL truncation)
+            reason_row = conn.execute(
+                """SELECT reasoning_md
                    FROM decisions
                    WHERE symbol=? AND action='WATCH' AND ts=?
                    LIMIT 1""",
@@ -71,7 +71,7 @@ def active_watches(*, max_age_days: int = DEFAULT_MAX_AGE_DAYS, limit: int = DEF
             out.append(WatchEntry(
                 symbol=sym, last_watch_ts=last_ts,
                 days_ago=days_ago,
-                last_reason_excerpt=(excerpt_row["excerpt"] if excerpt_row else ""),
+                last_reason=(reason_row["reasoning_md"] if reason_row else ""),
             ))
     return out
 
@@ -121,7 +121,7 @@ def watchlist_candidates(
             reason=(
                 f"[watchlist re-check] flagged WATCH {w.days_ago}d ago "
                 f"({w.last_watch_ts[:10]}); reason snippet: "
-                f"{w.last_reason_excerpt[:120]}"
+                f"{w.last_reason[:120]}"
             ),
         ))
     return out

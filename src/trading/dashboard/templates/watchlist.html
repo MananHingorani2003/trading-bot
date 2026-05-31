@@ -11,15 +11,19 @@
 {% if rows %}
 <table>
   <thead><tr>
-    <th>Symbol</th><th>Last WATCH</th><th class="num">Days ago</th><th>Reason excerpt</th>
+    <th>Symbol</th><th>Last WATCH</th><th class="num">Days ago</th><th>Sonnet's full reasoning</th>
   </tr></thead>
   <tbody>
   {% for w in rows %}
     <tr>
-      <td><a href="/thesis/{{ w.symbol }}" style="color:var(--acc);">{{ w.symbol }}</a></td>
-      <td class="muted">{{ w.last_watch_ts[:16] }}</td>
-      <td class="num">{{ w.days_ago }}</td>
-      <td><pre>{{ w.last_reason_excerpt }}</pre></td>
+      <td style="vertical-align:top;">
+        <a href="/thesis/{{ w.symbol }}" style="color:var(--acc);">{{ w.symbol }}</a>
+      </td>
+      <td class="muted" style="vertical-align:top;">{{ w.last_watch_ts[:16] }}</td>
+      <td class="num" style="vertical-align:top;">{{ w.days_ago }}</td>
+      <td style="vertical-align:top; max-width: 80ch;">
+        <pre style="max-width: 80ch; white-space: pre-wrap; word-wrap: break-word;">{{ w.last_reason }}</pre>
+      </td>
     </tr>
   {% endfor %}
   </tbody>

@@ -1,0 +1,30 @@
+{% extends "_base.html" %}
+{% block title %}Watchlist · tt{% endblock %}
+{% block content %}
+<h1>Active watchlist (last {{ days }}d)</h1>
+<p class="muted">
+  Symbols recently flagged as WATCH by Sonnet. These are re-evaluated every
+  morning regardless of whether they appear in fresh trend candidates — so
+  "wait for pullback to ₹X" recommendations don't get forgotten.
+</p>
+
+{% if rows %}
+<table>
+  <thead><tr>
+    <th>Symbol</th><th>Last WATCH</th><th class="num">Days ago</th><th>Reason excerpt</th>
+  </tr></thead>
+  <tbody>
+  {% for w in rows %}
+    <tr>
+      <td><a href="/thesis/{{ w.symbol }}" style="color:var(--acc);">{{ w.symbol }}</a></td>
+      <td class="muted">{{ w.last_watch_ts[:16] }}</td>
+      <td class="num">{{ w.days_ago }}</td>
+      <td><pre>{{ w.last_reason_excerpt }}</pre></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">Watchlist is empty — no WATCH decisions in the last {{ days }} days.</p>
+{% endif %}
+{% endblock %}

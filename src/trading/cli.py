@@ -207,6 +207,70 @@ def schedule_cmd(
     run_forever(universe=universe, universe_limit=(universe_limit or None))
 
 
+@app.command("watchlist")
+def watchlist_cmd(days: int = typer.Option(14, help="WATCH lookback window")):
+    """Show currently active watchlist (recently WATCH'd symbols)."""
+    from trading.intelligence.watchlist import active_watches
+    watches = active_watches(max_age_days=days, limit=50)
+    tbl = Table(title=f"Active watchlist (last {days}d)")
+    tbl.add_column("symbol"); tbl.add_column("last WATCH"); tbl.add_column("days ago", justify="right")
+    tbl.add_column("reason excerpt", overflow="fold")
+    if not watches:
+        console.print("[yellow]watchlist empty — no recent WATCH decisions")
+        return
+    for w in watches:
+        tbl.add_row(w.symbol, w.last_watch_ts[:10], str(w.days_ago), w.last_reason_excerpt[:160])
+    console.print(tbl)
+
+
+@app.command("sync-prod")
+def sync_prod(
+    vps_ip: str = typer.Option("65.0.55.227", help="VPS public IP"),
+    key: str = typer.Option("~/.ssh/lightsail-mumbai.pem", help="SSH private key path"),
+    user: str = typer.Option("ubuntu", help="SSH user on VPS"),
+    snapshot_dir: str = typer.Option("~/Backups", help="Where to keep timestamped snapshots"),
+):
+    """One-shot: scp the prod ledger.db from the VPS to local data/ledger.db.
+
+    Also backs up the existing local db first, then saves a timestamped
+    snapshot in ~/Backups so you have a recovery point. Safe to run anytime.
+    """
+    import subprocess
+    from datetime import datetime
+    from pathlib import Path
+    from shutil import copy2
+
+    local = Path("data/ledger.db").resolve()
+    local.parent.mkdir(parents=True, exist_ok=True)
+    snap_dir = Path(snapshot_dir).expanduser()
+    snap_dir.mkdir(parents=True, exist_ok=True)
+    expanded_key = str(Path(key).expanduser())
+
+    # 1. Backup existing local first
+    if local.exists():
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup = snap_dir / f"ledger-localmac-before-sync-{ts}.db"
+        copy2(local, backup)
+        console.print(f"[muted]backed up existing local → {backup}[/muted]")
+
+    # 2. SCP from VPS
+    src = f"{user}@{vps_ip}:/opt/trading-terminal/data/ledger.db"
+    console.print(f"[cyan]fetching {src} → {local}[/cyan]")
+    r = subprocess.run(
+        ["scp", "-i", expanded_key, "-o", "StrictHostKeyChecking=accept-new", src, str(local)],
+        check=False,
+    )
+    if r.returncode != 0:
+        console.print(f"[red]scp failed (exit {r.returncode}). check key path, IP, and VPS reachability.")
+        raise typer.Exit(1)
+
+    # 3. Timestamped snapshot (one per day, overwrites if rerun same day)
+    snap = snap_dir / f"ledger-prod-{datetime.now().strftime('%Y%m%d')}.db"
+    copy2(local, snap)
+    size_kb = local.stat().st_size / 1024
+    console.print(f"[green]synced ({size_kb:.1f} KB). daily snapshot: {snap}")
+
+
 @app.command("sleeves")
 def sleeves_cmd():
     """Show core vs aggressive sleeve allocation + current usage."""

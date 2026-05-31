@@ -355,11 +355,25 @@ sqlite3 data/ledger.db "SELECT symbol, qty, avg_price, opened_at FROM positions 
 ### 7e. OR browse the dashboard (see §6)
 
 ### 7f. Back up the db before doing anything (Mac)
+
+**Easy way — single command (recommended):**
+```bash
+cd ~/ClaudeCode_AI_Trading && uv run tt sync-prod
+```
+Pulls VPS ledger to `data/ledger.db`, backs up local first, saves a dated snapshot to `~/Backups/ledger-prod-YYYYMMDD.db`. Idempotent.
+
+**Manual fallback:**
 ```bash
 scp -i ~/.ssh/lightsail-mumbai.pem \
-    ubuntu@<vps-ip>:/opt/trading-terminal/data/ledger.db \
+    ubuntu@65.0.55.227:/opt/trading-terminal/data/ledger.db \
     ~/Backups/ledger-$(date +%Y%m%d).db
 ```
+
+### 7g. Watchlist — see what's being monitored
+```bash
+uv run tt watchlist
+```
+Shows stocks Sonnet recently flagged as WATCH. These get re-evaluated every morning automatically (since the watchlist sweep was added), so "wait for pullback to ₹X" recommendations don't get lost when a symbol falls out of trend candidates.
 
 ---
 

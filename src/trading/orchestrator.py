@@ -26,6 +26,7 @@ from trading.data.universe import load_symbols as load_universe
 from trading.intelligence import news as news_mod
 from trading.intelligence.briefing import build_briefing
 from trading.intelligence.events import in_blackout
+from trading.intelligence.watchlist import watchlist_candidates
 from trading.knowledge import kb, ledger
 from trading.knowledge.migrations import migrate
 from trading.risk.gates import gate_buy, stop_and_target
@@ -48,6 +49,7 @@ class DayReport:
     after_screen: int = 0
     n_candidates: int = 0
     n_aggressive_candidates: int = 0
+    n_watchlist_recheck: int = 0
     haiku_picks: list[str] = field(default_factory=list)
     sonnet_recommends: list[str] = field(default_factory=list)
     opus_buys: list[str] = field(default_factory=list)        # core picks
@@ -198,6 +200,24 @@ def run_day(
             score=m.score,
             reason=f"[aggressive] {m.reason} | latest: {m.latest_news_title}",
         ))
+
+    # --- Watchlist sweep: force-include recently WATCH'd symbols even if
+    #     they aren't in today's trend/momentum candidates. Sonnet's history
+    #     lookup will surface the original "wait for X" reasoning. ---
+    wl_cands = watchlist_candidates(bars_pass)
+    existing_syms = {c.symbol for c in cands}
+    added = 0
+    for wc in wl_cands:
+        if wc.symbol in existing_syms:
+            continue
+        cands.append(wc)
+        added += 1
+    report.n_watchlist_recheck = added
+    if added:
+        print(f"[day {today}] watchlist re-check: {added} symbols force-included")
+    # Re-sort so high-priority watchlist entries surface to Haiku
+    cands.sort(key=lambda c: c.score, reverse=True)
+    cands = cands[:TopN_AFTER_RULES + len(wl_cands)]
 
     # 4) Reconstruct cash for this day's broker session
     broker = PaperBroker(starting_cash=cfg.portfolio.capital)

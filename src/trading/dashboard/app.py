@@ -107,6 +107,15 @@ def decisions(request: Request):
     return TEMPLATES.TemplateResponse(request, "decisions.html", {"decisions": rows})
 
 
+@app.get("/watchlist", response_class=HTMLResponse)
+def watchlist_view(request: Request, days: int = 14):
+    from trading.intelligence.watchlist import active_watches
+    rows = active_watches(max_age_days=days, limit=50)
+    return TEMPLATES.TemplateResponse(request, "watchlist.html", {
+        "rows": rows, "days": days,
+    })
+
+
 @app.get("/news", response_class=HTMLResponse)
 def news_view(request: Request, symbol: str | None = None, days: int = 7):
     from trading.intelligence import news as news_mod

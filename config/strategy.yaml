@@ -2,12 +2,12 @@ version: 0.1.0
 
 portfolio:
   capital: 50000          # INR — paper capital
-  max_positions: 7        # 5 core + 2 aggressive
-  max_pct_per_position: 0.18
+  max_positions: 8        # 6 core + 2 aggressive (tuned up from 7 after week 1 review)
+  max_pct_per_position: 0.14  # tightened from 0.18 — smaller individual bets
   reserve_cash_pct: 0.10
 
 risk:
-  default_stop_loss_pct: 0.06
+  default_stop_loss_pct: 0.05   # tightened from 0.06 — pair with smaller positions
   default_target_r_multiple: 2.0
   daily_loss_halt_pct: 0.03
   weekly_loss_halt_pct: 0.07
@@ -17,10 +17,13 @@ sleeves:
   # Core: stable trend-followers. Most of the book.
   core:
     capital_pct: 0.80          # 80% of total capital reserved for core
-    max_positions: 5
-    max_pct_per_position: 0.18 # of TOTAL capital
-    stop_loss_pct: 0.06
+    max_positions: 6           # up from 5 — more diversification
+    max_pct_per_position: 0.12 # of TOTAL capital (down from 0.18)
+    stop_loss_pct: 0.05        # down from 0.06
     target_r_multiple: 2.0
+    # Volume floor added after week 1 — FINCABLES at 0.13x avg was the
+    # tell-tale on a losing trade; require at least near-average volume.
+    min_volume_surge: 0.7
   # Aggressive: news-catalyst breakouts. Smaller stocks OK. Tighter stops.
   aggressive:
     capital_pct: 0.20          # 20% of total capital

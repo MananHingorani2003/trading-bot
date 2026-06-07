@@ -34,6 +34,7 @@ def trend_candidates(
     fast: int = 20,
     slow: int = 50,
     adx_min: float = 20.0,
+    min_volume_surge: float = 0.7,
 ) -> list[Candidate]:
     """Return BUY candidates where price is in a confirmed up-trend."""
     out: list[Candidate] = []
@@ -66,7 +67,7 @@ def trend_candidates(
             continue
         if r_now > 75:
             continue
-        if vsurge < 0.7:                  # unusually thin day — likely noise
+        if vsurge < min_volume_surge:     # configurable per sleeve — was hard 0.7
             continue
 
         # Score:

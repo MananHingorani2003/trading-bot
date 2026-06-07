@@ -36,9 +36,9 @@ from trading.strategy.screen import screen_many
 from trading.strategy.trend import Candidate, exit_signal, trend_candidates
 
 TopN_AFTER_RULES = 30
-TopN_AFTER_HAIKU = 8
-TopN_AFTER_SONNET = 5
-MAX_AGGRESSIVE_FROM_RULES = 8         # cap raw momentum candidates fed into the AI
+TopN_AFTER_HAIKU = 12                 # was 8 — more shots after week 1 review
+TopN_AFTER_SONNET = 6                 # was 5 — slightly larger Opus shortlist
+MAX_AGGRESSIVE_FROM_RULES = 8
 
 
 @dataclass
@@ -160,11 +160,13 @@ def run_day(
     print(f"[day {today}] screen passed: {len(passed)}/{len(symbols)}")
 
     bars_pass = {s: bars[s] for s in passed}
+    core_cfg = cfg.sleeves.get("core") if cfg.sleeves else None
     cands = trend_candidates(
         bars_pass,
         fast=cfg.signals["trend"]["fast_ema"],
         slow=cfg.signals["trend"]["slow_ema"],
         adx_min=cfg.signals["trend"]["adx_min"],
+        min_volume_surge=(core_cfg.min_volume_surge if core_cfg and core_cfg.min_volume_surge else 0.7),
     )[:TopN_AFTER_RULES]
     report.n_candidates = len(cands)
     print(f"[day {today}] trend candidates (core): {len(cands)}")
@@ -299,8 +301,8 @@ def run_day(
         report.haiku_picks = picks
         cand_by_sym = {c.symbol: c for c in cands}
 
-        shortlist: list = []
-        watchlist: list = []                    # 'watch' fallback if no consider_buy
+        shortlist: list = []                    # consider_buy: primary picks
+        watchlist: list = []                    # watch: secondary, Opus decides
         for sym in picks:
             cand = cand_by_sym.get(sym)
             if not cand:
@@ -320,17 +322,18 @@ def run_day(
                 shortlist.append((cand, analysis))
             elif analysis.recommendation == "watch":
                 watchlist.append((cand, analysis))
-            if len(shortlist) >= TopN_AFTER_SONNET:
-                break
 
-        # If Sonnet was too conservative and we got no clear buys, promote the
-        # 'watch' recommendations into the shortlist so Opus still gets to
-        # decide. Opus is the final gatekeeper anyway; better to let it see
-        # candidates with full context than to silently exit with no buys.
-        if not shortlist and watchlist:
-            print(f"[day {today}] no consider_buy from Sonnet; promoting {len(watchlist)} 'watch' to Opus")
-            shortlist = watchlist[:TopN_AFTER_SONNET]
-            report.sonnet_recommends.extend(c.symbol for c, _ in shortlist)
+        # Always feed BOTH consider_buy AND watch to Opus. Opus is the final
+        # gatekeeper — letting it see watches alongside consider_buys means it
+        # can compare relative quality and pick the best, not just the
+        # least-bad-from-an-already-thin-shortlist.
+        combined = shortlist + watchlist
+        if watchlist and not shortlist:
+            print(f"[day {today}] no consider_buy; Opus deciding from {len(watchlist)} 'watch'")
+        elif watchlist:
+            print(f"[day {today}] Opus shortlist: {len(shortlist)} consider_buy + {len(watchlist)} watch")
+        shortlist = combined[:TopN_AFTER_SONNET]
+        report.sonnet_recommends.extend(c.symbol for c, _ in shortlist if c.symbol not in report.sonnet_recommends)
 
         with ledger.connect() as conn:
             n_open = len(ledger.open_positions(conn))

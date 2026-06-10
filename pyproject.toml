@@ -21,6 +21,7 @@ dependencies = [
     "typer>=0.12",
     "anthropic>=0.40",
     "feedparser>=6.0",
+    "telethon>=1.36",
 ]
 
 [project.optional-dependencies]

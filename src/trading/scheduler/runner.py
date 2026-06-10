@@ -72,16 +72,39 @@ def job_run_day(*, universe: str = "nifty500", universe_limit: int | None = None
         tg.notify_error("scheduled run-day", str(e))
 
 
+def job_signal_poll() -> None:
+    today = _today_ist()
+    if why_closed(today):
+        return
+    try:
+        from trading.intelligence.signals.poll import poll
+        r = poll("lemonnhq")
+        if r.fetched:
+            print(f"[signals] fetched={r.fetched} new={r.new} buys={r.buys_filled} sells={r.sells_filled} skip={r.skipped} rej={r.rejected}")
+        if r.errors:
+            for e in r.errors:
+                print(f"[signals] error: {e}")
+    except Exception as e:                          # noqa: BLE001
+        print(f"[signals] poll FAILED: {e}")
+        tg.notify_error("scheduled signal poll", str(e))
+
+
 def build_scheduler(*, universe: str = "nifty500", universe_limit: int | None = None) -> BlockingScheduler:
     sched = BlockingScheduler(timezone=IST)
     # 08:30 IST — briefing
     sched.add_job(job_briefing, CronTrigger(day_of_week="mon-fri", hour=8, minute=30, timezone=IST),
                   id="briefing", max_instances=1, coalesce=True, misfire_grace_time=600)
-    # 09:30 IST — full pipeline (15 min after open, avoids opening volatility)
+    # 09:30 IST — full AI pipeline (15 min after open)
     sched.add_job(
         lambda: job_run_day(universe=universe, universe_limit=universe_limit),
         CronTrigger(day_of_week="mon-fri", hour=9, minute=30, timezone=IST),
         id="run_day", max_instances=1, coalesce=True, misfire_grace_time=1800,
+    )
+    # Every 30 min from 09:35 → 15:30 IST — analyst signal poll
+    sched.add_job(
+        job_signal_poll,
+        CronTrigger(day_of_week="mon-fri", hour="9-15", minute="5,35", timezone=IST),
+        id="signal_poll", max_instances=1, coalesce=True, misfire_grace_time=600,
     )
     return sched
 

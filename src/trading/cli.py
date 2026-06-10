@@ -299,6 +299,117 @@ def sync_prod(
         uvicorn.run("trading.dashboard.app:app", host=host, port=port, reload=False, log_level="warning")
 
 
+@app.command("signal-auth")
+def signal_auth():
+    """One-time interactive Telegram auth for the channel listener.
+
+    Prompts for phone number + OTP. Saves a session file at the path in
+    TELEGRAM_SESSION_PATH (default: data/telegram-listener.session). Run once
+    locally, then upload the session file to the VPS; or run directly on the
+    VPS over SSH.
+    """
+    from trading.settings import settings
+    if not settings.telegram_api_id or not settings.telegram_api_hash:
+        console.print("[red]Set TELEGRAM_API_ID and TELEGRAM_API_HASH in .env first.")
+        console.print("Get them from https://my.telegram.org → API development tools.")
+        raise typer.Exit(1)
+    try:
+        from telethon.sync import TelegramClient
+    except ImportError:
+        console.print("[red]telethon not installed. Run `uv sync`."); raise typer.Exit(1)
+    client = TelegramClient(
+        settings.telegram_session_path,
+        settings.telegram_api_id,
+        settings.telegram_api_hash,
+    )
+    client.start()           # interactive phone+OTP prompt
+    me = client.get_me()
+    console.print(f"[green]authenticated as {me.username or me.id}; "
+                  f"session at {settings.telegram_session_path}")
+    client.disconnect()
+
+
+@app.command("signal-poll")
+def signal_poll_cmd(source: str = typer.Option("lemonnhq", help="Source name from strategy.yaml")):
+    """Fetch + parse + execute one signal-poll cycle now."""
+    from trading.intelligence.signals.poll import poll
+    r = poll(source)
+    tbl = Table(title=f"Signal poll — {source}")
+    tbl.add_column("metric"); tbl.add_column("value", justify="right")
+    tbl.add_row("messages fetched", str(r.fetched))
+    tbl.add_row("new (not seen before)", str(r.new))
+    tbl.add_row("BUYS filled", str(r.buys_filled))
+    tbl.add_row("SELLS filled", str(r.sells_filled))
+    tbl.add_row("skipped", str(r.skipped))
+    tbl.add_row("rejected (F&O etc.)", str(r.rejected))
+    if r.errors:
+        tbl.add_row("errors", "\n".join(r.errors))
+    console.print(tbl)
+
+
+@app.command("signal-paste")
+def signal_paste(
+    text: str = typer.Argument(..., help="Raw message text (quote it)"),
+    source: str = typer.Option("manual", help="Tag for the source"),
+):
+    """Manually feed a signal message — useful when Telethon isn't configured
+    or to dry-run a parser against a specific message."""
+    from datetime import datetime
+    from trading.intelligence.signals.parser import parse
+    from trading.intelligence.signals import listener
+    p = parse(text)
+    console.print(f"[cyan]parsed kind={p.kind} symbol={p.symbol} reason={p.reason}")
+    if p.kind == "buy":
+        console.print(f"  entry {p.buy.entry_low}-{p.buy.entry_high} target {p.buy.target} stop {p.buy.stop_loss}")
+    elif p.kind == "update":
+        console.print(f"  {p.update.side} @ {p.update.exit_price}")
+    if p.kind in ("buy", "update"):
+        # Reuse the poll's executor by hand
+        from trading.intelligence.signals.poll import _broker_with_current_cash, _current_price
+        from trading.settings import load_strategy
+        from trading.strategy.signal_follower import execute_buy, execute_update
+        cfg = load_strategy()
+        broker = _broker_with_current_cash(cfg)
+        sym = p.symbol
+        price = _current_price(sym) or (p.buy.entry_high if p.buy else p.update.exit_price)
+        if p.kind == "buy":
+            r = execute_buy(p.buy, current_price=price, cfg=cfg, broker=broker, source=source)
+        else:
+            r = execute_update(p.update, current_price=price, cfg=cfg, broker=broker, source=source)
+        console.print(f"[{'green' if r.action in ('bought','sold') else 'yellow'}]→ {r.action}: {r.detail}")
+        # Log raw message for completeness (synthetic channel_msg_id)
+        listener.record_message(
+            source=source, channel_msg_id=int(datetime.now().timestamp()),
+            received_at=datetime.utcnow(), text=text, parsed=p,
+            action=r.action, position_id=r.position_id,
+        )
+
+
+@app.command("signals")
+def signals_list(limit: int = typer.Option(30, help="rows to show")):
+    """Show recent signal messages + what we did with each."""
+    with ledger.connect() as conn:
+        rows = list(conn.execute(
+            """SELECT received_at, source, kind, symbol, action_taken,
+                      substr(message_text, 1, 120) AS preview
+               FROM signal_messages ORDER BY id DESC LIMIT ?""",
+            (limit,),
+        ))
+    if not rows:
+        console.print("[yellow]no signal messages logged yet")
+        return
+    tbl = Table(title="Recent signal messages")
+    tbl.add_column("time"); tbl.add_column("source")
+    tbl.add_column("kind"); tbl.add_column("symbol")
+    tbl.add_column("action"); tbl.add_column("preview", overflow="fold")
+    for r in rows:
+        row = dict(r)
+        tbl.add_row(row["received_at"][:16], row["source"], row["kind"] or "—",
+                    row["symbol"] or "—", row["action_taken"] or "—",
+                    row["preview"][:90])
+    console.print(tbl)
+
+
 @app.command("sleeves")
 def sleeves_cmd():
     """Show core vs aggressive sleeve allocation + current usage."""

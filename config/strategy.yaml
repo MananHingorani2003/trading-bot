@@ -37,6 +37,21 @@ sleeves:
     breakout_lookback_days: 20 # close must exceed prior N-day high
     min_volume_surge: 1.8      # today's volume / 20d avg
     rsi_max: 80
+  # Analyst-signal sleeve: follows SEBI-registered Telegram channels verbatim.
+  # No AI reasoning — pure signal-following. Uses analyst's own stop/target.
+  analyst_signal:
+    capital_pct: 0.20          # 20% capital reserved for signal channels
+    max_positions: 4           # diversify across signals
+    max_pct_per_position: 0.05 # ~₹2500/trade at 50k capital
+    # Stop/target come from the signal itself, not our defaults
+
+signal_sources:
+  lemonnhq:
+    enabled: true
+    channel: "LemonnHQ"        # https://t.me/LemonnHQ
+    only_kinds: ["STOCKS"]     # drop F&O
+    only_products: ["DELIVERY"]
+    max_age_minutes: 720       # ignore signals older than 12 hours
 
 universe:
   source: nifty500

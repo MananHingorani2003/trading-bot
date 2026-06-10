@@ -107,6 +107,24 @@ def decisions(request: Request):
     return TEMPLATES.TemplateResponse(request, "decisions.html", {"decisions": rows})
 
 
+@app.get("/signals", response_class=HTMLResponse)
+def signals_view(request: Request):
+    with ledger.connect() as conn:
+        rows = _q(conn, """
+            SELECT received_at, source, kind, symbol, action_taken, message_text, position_id
+            FROM signal_messages ORDER BY id DESC LIMIT 100
+        """)
+        agg = conn.execute(
+            "SELECT COUNT(*) total, "
+            "SUM(CASE WHEN action_taken='bought' THEN 1 ELSE 0 END) bought, "
+            "SUM(CASE WHEN action_taken='sold' THEN 1 ELSE 0 END) sold "
+            "FROM signal_messages"
+        ).fetchone()
+    return TEMPLATES.TemplateResponse(request, "signals.html", {
+        "rows": rows, "agg": dict(agg) if agg else {},
+    })
+
+
 @app.get("/watchlist", response_class=HTMLResponse)
 def watchlist_view(request: Request, days: int = 14):
     from trading.intelligence.watchlist import active_watches

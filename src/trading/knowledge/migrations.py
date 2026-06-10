@@ -73,10 +73,40 @@ def _m4_sleeves(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_positions_sleeve ON positions(sleeve)")
 
 
+def _m5_signal_source(conn: sqlite3.Connection) -> None:
+    """v5: external-signal tracking. Adds:
+       - positions.signal_source column (NULL=AI-generated, else channel name)
+       - signal_messages table: raw inbound channel messages + parsed payload
+       - signal_messages_fts: FTS over message text for search
+    """
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(positions)")]
+    if "signal_source" not in cols:
+        conn.execute("ALTER TABLE positions ADD COLUMN signal_source TEXT")
+
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS signal_messages (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            source        TEXT    NOT NULL,            -- e.g. 'lemonnhq'
+            channel_msg_id INTEGER NOT NULL,
+            received_at   TEXT    NOT NULL,            -- ISO
+            message_text  TEXT    NOT NULL,
+            kind          TEXT,                         -- 'buy' | 'update' | 'unknown'
+            symbol        TEXT,
+            parsed_json   TEXT,                         -- structured payload
+            action_taken  TEXT,                         -- 'bought' | 'sold' | 'skipped' | 'parse_failed'
+            position_id   INTEGER REFERENCES positions(id),
+            UNIQUE(source, channel_msg_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_signal_msgs_received ON signal_messages(received_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_signal_msgs_symbol ON signal_messages(symbol);
+    """)
+
+
 MIGRATIONS: list[tuple[int, Callable[[sqlite3.Connection], None]]] = [
     (2, _m2_fts5),
     (3, _m3_headlines),
     (4, _m4_sleeves),
+    (5, _m5_signal_source),
 ]
 
 

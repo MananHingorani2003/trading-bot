@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
 
+    # Telethon user-client credentials for listening to public channels.
+    # Obtain from https://my.telegram.org → API development tools.
+    telegram_api_id: int = 0
+    telegram_api_hash: str = ""
+    telegram_session_path: str = "data/telegram-listener.session"
+
     @property
     def ledger_path(self) -> Path:
         p = ROOT / self.ledger_db
@@ -68,6 +74,7 @@ class StrategyCfg(BaseModel):
     filters: dict
     signals: dict
     sleeves: dict[str, SleeveCfg] = {}
+    signal_sources: dict[str, dict] = {}
 
 
 def load_strategy() -> StrategyCfg:

@@ -1,0 +1,39 @@
+{% extends "_base.html" %}
+{% block title %}Signals · tt{% endblock %}
+{% block content %}
+<h1>Analyst signal messages (last 100)</h1>
+<div class="cards">
+  <div class="card"><div class="label">Total messages</div><div class="val">{{ agg.total or 0 }}</div></div>
+  <div class="card"><div class="label">Bought</div><div class="val pos">{{ agg.bought or 0 }}</div></div>
+  <div class="card"><div class="label">Sold</div><div class="val neg">{{ agg.sold or 0 }}</div></div>
+</div>
+
+{% if rows %}
+<table>
+  <thead><tr>
+    <th>Received</th><th>Source</th><th>Kind</th>
+    <th>Symbol</th><th>Action</th><th>Message</th>
+  </tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td class="muted">{{ r.received_at[:16] }}</td>
+      <td class="muted">{{ r.source }}</td>
+      <td>{{ r.kind or '—' }}</td>
+      <td>
+        {% if r.symbol %}
+          <a href="/thesis/{{ r.symbol }}" style="color:var(--acc);">{{ r.symbol }}</a>
+        {% else %}—{% endif %}
+      </td>
+      <td class="{% if r.action_taken in ['bought','sold'] %}pos{% elif r.action_taken in ['skipped','rejected'] %}muted{% else %}neg{% endif %}">
+        {{ r.action_taken or '—' }}
+      </td>
+      <td><pre style="max-width: 70ch; white-space: pre-wrap;">{{ r.message_text }}</pre></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">No signal messages yet. Run <code>tt signal-poll</code> after authing with <code>tt signal-auth</code>.</p>
+{% endif %}
+{% endblock %}
